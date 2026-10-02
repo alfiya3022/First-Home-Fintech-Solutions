@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from "react";
 import { ArrowRight } from "lucide-react";
-
 import contactImage from "@/assets/images/contact-image.jpg";
 import { submitContactEnquiry } from "@/services/api";
 
@@ -17,6 +16,7 @@ const serviceOptions = [
   "Property Investors",
   "Self-Employed Mortgage Solutions",
   "Islamic / Sharia-Compliant Financing",
+  "Other",
 ];
 
 interface ContactFormData {
@@ -119,8 +119,8 @@ function Contact() {
               </h2>
 
               <p className="mt-5 text-base leading-7 text-[#68727D]">
-                Share a few details about what you&apos;re looking for and our
-                team can help you explore the next steps.
+                Share a few details about what you are looking for and our team
+                can help you explore the next steps.
               </p>
             </div>
 

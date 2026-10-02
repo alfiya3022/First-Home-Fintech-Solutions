@@ -40,6 +40,7 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+
   --color-foreground: var(--foreground);
   --color-background: var(--background);
 
@@ -172,6 +173,10 @@
   }
 }
 
+/* =========================================================
+   Service scroll
+========================================================= */
+
 @keyframes service-scroll {
   from {
     transform: translateX(0);
@@ -192,7 +197,9 @@
   }
 }
 
-/* Bank financing marquee */
+/* =========================================================
+   Bank financing marquee
+========================================================= */
 
 @keyframes bank-marquee-left {
   from {
@@ -214,12 +221,24 @@
   }
 }
 
+.bank-marquee-left,
+.bank-marquee-right {
+  /*
+    The duplicated logo groups must touch each other
+    so the animation can loop continuously without
+    a visible jump.
+  */
+  gap: 0 !important;
+
+  will-change: transform;
+}
+
 .bank-marquee-left {
-  animation: bank-marquee-left 34s linear infinite;
+  animation: bank-marquee-left 28s linear infinite;
 }
 
 .bank-marquee-right {
-  animation: bank-marquee-right 30s linear infinite;
+  animation: bank-marquee-right 26s linear infinite;
 }
 
 .bank-marquee-left:hover,
@@ -227,9 +246,14 @@
   animation-play-state: paused;
 }
 
+/* =========================================================
+   Reduced motion
+========================================================= */
+
 @media (prefers-reduced-motion: reduce) {
   .bank-marquee-left,
   .bank-marquee-right {
     animation: none;
+    transform: translateX(0);
   }
 }

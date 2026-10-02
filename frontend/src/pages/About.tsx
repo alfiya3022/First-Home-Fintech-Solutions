@@ -3,19 +3,29 @@ import Reveal from "@/components/ui/Reveal";
 
 import aboutImage from "@/assets/images/about-page.jpg";
 
-import emiratesNbdLogo from "@/assets/banks/emirates-nbd.svg";
-import adcbLogo from "@/assets/banks/adcb.svg";
-import hsbcLogo from "@/assets/banks/hsbc.svg";
-import mashreqLogo from "@/assets/banks/mashreq.svg";
-import rakbankLogo from "@/assets/banks/rakbank.svg";
-import cbdLogo from "@/assets/banks/cbd.svg";
-import standardCharteredLogo from "@/assets/banks/standard-chartered.svg";
-import nbfLogo from "@/assets/banks/nbf.svg";
+// =========================================================
+// BANK LOGOS
+// =========================================================
 
-import dibLogo from "@/assets/banks/dib.svg";
-import adibLogo from "@/assets/banks/adib.svg";
-import emiratesIslamicLogo from "@/assets/banks/emirates-islamic.svg";
-import sibLogo from "@/assets/banks/sib.svg";
+// Conventional banks
+import adcbLogo from "@/assets/banks/ADCB.jpg";
+import hsbcLogo from "@/assets/banks/HSBC.jpg";
+import mashreqLogo from "@/assets/banks/mashreq.png";
+import rakbankLogo from "@/assets/banks/rak bank.png";
+import cbdLogo from "@/assets/banks/cbd.png";
+import standardCharteredLogo from "@/assets/banks/standard chatered.png";
+import nbfLogo from "@/assets/banks/nbf.png";
+import emiratesNbdLogo from "@/assets/banks/emarated nbd.jpg";
+
+// Islamic banks
+import dibLogo from "@/assets/banks/DIB.jpg";
+import adibLogo from "@/assets/banks/ADIB.jpg";
+import emiratesIslamicLogo from "@/assets/banks/emirates.png";
+import sibLogo from "@/assets/banks/sib.png";
+
+// =========================================================
+// CUSTOMER SEGMENTS
+// =========================================================
 
 const customerSegments = [
   "UAE Residents",
@@ -29,18 +39,67 @@ const customerSegments = [
   "Property Professionals",
 ];
 
+// =========================================================
+// BANK DATA
+// =========================================================
+
 const conventionalBankLogos = [
-  emiratesNbdLogo,
-  adcbLogo,
-  hsbcLogo,
-  mashreqLogo,
-  rakbankLogo,
-  cbdLogo,
-  standardCharteredLogo,
-  nbfLogo,
+  {
+    name: "Emirates NBD",
+    logo: emiratesNbdLogo,
+  },
+  {
+    name: "ADCB",
+    logo: adcbLogo,
+  },
+  {
+    name: "HSBC UAE",
+    logo: hsbcLogo,
+  },
+  {
+    name: "Mashreq Bank",
+    logo: mashreqLogo,
+  },
+  {
+    name: "RAKBANK",
+    logo: rakbankLogo,
+  },
+  {
+    name: "Commercial Bank of Dubai",
+    logo: cbdLogo,
+  },
+  {
+    name: "Standard Chartered UAE",
+    logo: standardCharteredLogo,
+  },
+  {
+    name: "National Bank of Fujairah",
+    logo: nbfLogo,
+  },
 ];
 
-const islamicBankLogos = [dibLogo, adibLogo, emiratesIslamicLogo, sibLogo];
+const islamicBankLogos = [
+  {
+    name: "Dubai Islamic Bank",
+    logo: dibLogo,
+  },
+  {
+    name: "Abu Dhabi Islamic Bank",
+    logo: adibLogo,
+  },
+  {
+    name: "Emirates Islamic",
+    logo: emiratesIslamicLogo,
+  },
+  {
+    name: "Sharjah Islamic Bank",
+    logo: sibLogo,
+  },
+];
+
+// =========================================================
+// REVIEWS
+// =========================================================
 
 const reviews = [
   {
@@ -49,7 +108,6 @@ const reviews = [
       "The team made the mortgage process much easier to understand and guided us clearly through our options.",
     detail: "Client · UAE",
   },
-
   {
     name: "RAJNESH ARORA",
     quote:
@@ -63,6 +121,10 @@ const reviews = [
     detail: "Client · Dubai",
   },
 ];
+
+// =========================================================
+// FAQ
+// =========================================================
 
 const faqs = [
   {
@@ -87,11 +149,18 @@ const faqs = [
   },
 ];
 
+// =========================================================
+// BANK MARQUEE
+// =========================================================
+
 function BankMarquee({
   logos,
   direction,
 }: {
-  logos: string[];
+  logos: {
+    name: string;
+    logo: string;
+  }[];
   direction: "left" | "right";
 }) {
   const animationClass =
@@ -99,30 +168,39 @@ function BankMarquee({
 
   return (
     <div className="relative overflow-hidden">
-      <div className={`flex w-max gap-12 ${animationClass} sm:gap-16`}>
-        <div className="flex shrink-0 items-center gap-12 sm:gap-16">
-          {logos.map((logo, index) => (
-            <img
-              key={`${logo}-${index}`}
-              src={logo}
-              alt=""
-              aria-hidden="true"
-              className="h-10 w-auto max-w-[150px] object-contain sm:h-12 sm:max-w-[180px]"
-            />
+      <div className={`flex w-max ${animationClass}`}>
+        {/* First set */}
+        <div className="flex shrink-0 items-center gap-10 px-5 sm:gap-14">
+          {logos.map((bank) => (
+            <div
+              key={bank.name}
+              className="flex h-24 w-[240px] shrink-0 items-center justify-center rounded-xl bg-white px-6"
+            >
+              <img
+                src={bank.logo}
+                alt={bank.name}
+                className="block max-h-16 w-auto max-w-[205px] object-contain"
+              />
+            </div>
           ))}
         </div>
 
+        {/* Duplicate set for seamless marquee */}
         <div
-          className="flex shrink-0 items-center gap-12 sm:gap-16"
+          className="flex shrink-0 items-center gap-10 px-5 sm:gap-14"
           aria-hidden="true"
         >
-          {logos.map((logo, index) => (
-            <img
-              key={`duplicate-${logo}-${index}`}
-              src={logo}
-              alt=""
-              className="h-10 w-auto max-w-[150px] object-contain sm:h-12 sm:max-w-[180px]"
-            />
+          {logos.map((bank) => (
+            <div
+              key={`duplicate-${bank.name}`}
+              className="flex h-24 w-[240px] shrink-0 items-center justify-center rounded-xl bg-white px-6"
+            >
+              <img
+                src={bank.logo}
+                alt=""
+                className="block max-h-16 w-auto max-w-[205px] object-contain"
+              />
+            </div>
           ))}
         </div>
       </div>
@@ -130,12 +208,17 @@ function BankMarquee({
   );
 }
 
+// =========================================================
+// ABOUT PAGE
+// =========================================================
+
 function About() {
   return (
     <main>
       {/* =========================================================
           ABOUT HERO
       ========================================================= */}
+
       <section className="bg-[#071B2D] py-24 sm:py-28 lg:py-32">
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-6 lg:grid-cols-[0.95fr_1.05fr] lg:gap-20">
           <Reveal>
@@ -182,6 +265,7 @@ function About() {
       {/* =========================================================
           WHO WE HELP
       ========================================================= */}
+
       <section className="bg-white py-14 sm:py-16">
         <div className="mx-auto max-w-7xl px-6">
           <Reveal>
@@ -219,6 +303,7 @@ function About() {
       {/* =========================================================
           FINANCING LANDSCAPE
       ========================================================= */}
+
       <section className="overflow-hidden bg-[#FBFAF7] py-14 sm:py-16">
         <div className="mx-auto max-w-7xl px-6">
           <Reveal>
@@ -253,6 +338,7 @@ function About() {
       {/* =========================================================
           CLIENT REVIEWS
       ========================================================= */}
+
       <section className="bg-[#071B2D] py-14 sm:py-16">
         <div className="mx-auto max-w-7xl px-6">
           <Reveal>
@@ -275,13 +361,19 @@ function About() {
                   <p className="text-sm font-semibold text-white">
                     {review.name}
                   </p>
+
                   <p className="mt-1 text-xs text-white/50">{review.detail}</p>
-                  <div className="mt-6 border-t border-white/10 pt-2"></div>
+
+                  <div className="mt-6 border-t border-white/10 pt-2" />
+
                   <p className="mt-2 text-base leading-7 text-white/75">
                     “{review.quote}”
                   </p>
 
-                  <div className="flex gap-1" aria-label="Five star review">
+                  <div
+                    className="mt-6 flex gap-1"
+                    aria-label="Five star review"
+                  >
                     {Array.from({ length: 5 }).map((_, starIndex) => (
                       <span
                         key={starIndex}
@@ -302,6 +394,7 @@ function About() {
       {/* =========================================================
           FAQ
       ========================================================= */}
+
       <section className="bg-white py-14 sm:py-16">
         <div className="mx-auto max-w-4xl px-6">
           <Reveal>
@@ -338,6 +431,7 @@ function About() {
       {/* =========================================================
           CTA
       ========================================================= */}
+
       <section className="bg-[#FBFAF7] py-14 sm:py-16">
         <div className="mx-auto max-w-7xl px-6">
           <Reveal>

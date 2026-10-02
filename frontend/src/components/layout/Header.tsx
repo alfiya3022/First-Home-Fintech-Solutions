@@ -55,14 +55,14 @@ function Header() {
         {/* Desktop Navigation */}
         <nav
           aria-label="Main navigation"
-          className="hidden items-center gap-8 lg:flex"
+          className="hidden items-center gap-9 lg:flex"
         >
           {navigationLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}
               className="
-                text-sm font-medium text-white/90
+                text-base font-medium text-white/90
                 transition-colors
                 hover:text-[#D9BC7A]
               "
@@ -71,24 +71,6 @@ function Header() {
             </a>
           ))}
         </nav>
-
-        {/* CTA */}
-        <a
-          href="/#contact"
-          className="
-            hidden items-center justify-center
-            rounded-xl
-            bg-[#D9BC7A]
-            px-6 py-3
-            text-sm font-semibold
-            text-[#071B2D]
-            transition-colors
-            hover:bg-[#E3CA96]
-            lg:inline-flex
-          "
-        >
-          Talk to a Consultant
-        </a>
 
         {/* Mobile Menu Button */}
         <button
