@@ -1,4 +1,8 @@
+import { ArrowRight } from "lucide-react";
+
 import Reveal from "@/components/ui/Reveal";
+
+import worksImage from "@/assets/images/works.jpg";
 
 const steps = [
   {
@@ -45,33 +49,72 @@ function HowItWorks() {
           </div>
         </Reveal>
 
-        {/* Steps */}
-        <div className="relative mt-16">
-          {/* Desktop Connecting Line */}
-          <div
-            className="absolute left-[12.5%] right-[12.5%] top-6 hidden h-px bg-slate-200 lg:block"
-            aria-hidden="true"
-          />
+        {/* Image + Steps */}
+        <div className="mt-16 grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+          {/* Consultation Image */}
+          <Reveal>
+            <div className="overflow-hidden rounded-3xl">
+              <img
+                src={worksImage}
+                alt="Mortgage consultation between a property advisor and clients"
+                className="h-[360px] w-full object-cover transition-transform duration-700 hover:scale-[1.02] motion-reduce:transition-none sm:h-[440px] lg:h-[500px]"
+              />
+            </div>
+          </Reveal>
 
-          <div className="grid gap-10 lg:grid-cols-4 lg:gap-8">
-            {steps.map((step, index) => (
-              <Reveal key={step.number} delay={index * 120}>
-                <article className="relative text-center lg:text-left">
-                  {/* Step Number */}
-                  <div className="relative z-10 mx-auto flex size-12 items-center justify-center rounded-full border border-[#D9BC7A] bg-white text-sm font-semibold text-[#071B2D] lg:mx-0">
-                    {step.number}
-                  </div>
+          {/* Steps + CTA */}
+          <div className="relative">
+            {/* Vertical Connecting Line */}
+            <div
+              className="absolute left-6 top-6 hidden h-[calc(100%-24px)] w-px bg-slate-200 sm:block"
+              aria-hidden="true"
+            />
 
-                  <h3 className="mt-6 text-lg font-semibold text-[#071B2D]">
-                    {step.title}
-                  </h3>
+            <div className="space-y-8">
+              {steps.map((step, index) => (
+                <Reveal key={step.number} delay={index * 120}>
+                  <article className="relative flex gap-6">
+                    {/* Step Number */}
+                    <div className="relative z-10 flex size-12 shrink-0 items-center justify-center rounded-full border border-[#D9BC7A] bg-white text-sm font-semibold text-[#071B2D]">
+                      {step.number}
+                    </div>
 
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {step.description}
-                  </p>
-                </article>
-              </Reveal>
-            ))}
+                    {/* Step Content */}
+                    <div className="pt-1">
+                      <h3 className="text-lg font-semibold text-[#071B2D]">
+                        {step.title}
+                      </h3>
+
+                      <p className="mt-2 max-w-md text-sm leading-6 text-slate-600 sm:text-base">
+                        {step.description}
+                      </p>
+                    </div>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
+
+            {/* Contextual CTA */}
+            <Reveal delay={500}>
+              <div className="mt-10 rounded-2xl border border-slate-200 bg-[#FBFAF7] p-6 sm:p-7">
+                <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#A98C4F]">
+                  Not sure where to start?
+                </p>
+
+                <p className="mt-3 text-sm leading-6 text-slate-600 sm:text-base">
+                  Tell us what you&apos;re looking for and we&apos;ll help you
+                  understand the options available to you.
+                </p>
+
+                <a
+                  href="/#contact"
+                  className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#071B2D] transition-colors hover:text-[#A98C4F]"
+                >
+                  Get Started
+                  <ArrowRight className="size-4" aria-hidden="true" />
+                </a>
+              </div>
+            </Reveal>
           </div>
         </div>
       </div>

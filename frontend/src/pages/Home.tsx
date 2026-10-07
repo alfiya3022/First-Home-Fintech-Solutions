@@ -5,6 +5,7 @@ import Hero from "@/components/sections/Hero";
 import HowItWorks from "@/components/sections/HowItWorks";
 import MortgageCalculator from "@/components/sections/MortgageCalculator";
 import MortgageSolutions from "@/components/sections/MortgageSolutions";
+import PartneredBanks from "@/components/sections/PartneredBanks";
 import WhyFirstHome from "@/components/sections/WhyFirstHome";
 
 function Home() {
@@ -36,6 +37,7 @@ function Home() {
       <MortgageSolutions />
       <HowItWorks />
       <MortgageCalculator />
+      <PartneredBanks />
       <Contact />
     </main>
   );

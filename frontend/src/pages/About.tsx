@@ -1,27 +1,8 @@
 import { ArrowRight, Check, ChevronDown } from "lucide-react";
+
 import Reveal from "@/components/ui/Reveal";
 
 import aboutImage from "@/assets/images/about-page.jpg";
-
-// =========================================================
-// BANK LOGOS
-// =========================================================
-
-// Conventional banks
-import adcbLogo from "@/assets/banks/ADCB.jpg";
-import hsbcLogo from "@/assets/banks/HSBC.jpg";
-import mashreqLogo from "@/assets/banks/mashreq.png";
-import rakbankLogo from "@/assets/banks/rak bank.png";
-import cbdLogo from "@/assets/banks/cbd.png";
-import standardCharteredLogo from "@/assets/banks/standard chatered.png";
-import nbfLogo from "@/assets/banks/nbf.png";
-import emiratesNbdLogo from "@/assets/banks/emarated nbd.jpg";
-
-// Islamic banks
-import dibLogo from "@/assets/banks/DIB.jpg";
-import adibLogo from "@/assets/banks/ADIB.jpg";
-import emiratesIslamicLogo from "@/assets/banks/emirates.png";
-import sibLogo from "@/assets/banks/sib.png";
 
 // =========================================================
 // CUSTOMER SEGMENTS
@@ -37,64 +18,6 @@ const customerSegments = [
   "Business Owners",
   "Commercial Customers",
   "Property Professionals",
-];
-
-// =========================================================
-// BANK DATA
-// =========================================================
-
-const conventionalBankLogos = [
-  {
-    name: "Emirates NBD",
-    logo: emiratesNbdLogo,
-  },
-  {
-    name: "ADCB",
-    logo: adcbLogo,
-  },
-  {
-    name: "HSBC UAE",
-    logo: hsbcLogo,
-  },
-  {
-    name: "Mashreq Bank",
-    logo: mashreqLogo,
-  },
-  {
-    name: "RAKBANK",
-    logo: rakbankLogo,
-  },
-  {
-    name: "Commercial Bank of Dubai",
-    logo: cbdLogo,
-  },
-  {
-    name: "Standard Chartered UAE",
-    logo: standardCharteredLogo,
-  },
-  {
-    name: "National Bank of Fujairah",
-    logo: nbfLogo,
-  },
-];
-
-const islamicBankLogos = [
-  {
-    name: "Dubai Islamic Bank",
-    logo: dibLogo,
-  },
-  {
-    name: "Abu Dhabi Islamic Bank",
-    logo: adibLogo,
-  },
-  {
-    name: "Emirates Islamic",
-    logo: emiratesIslamicLogo,
-  },
-  {
-    name: "Sharjah Islamic Bank",
-    logo: sibLogo,
-  },
 ];
 
 // =========================================================
@@ -148,65 +71,6 @@ const faqs = [
       "First Home can help clients explore Islamic and Sharia-compliant financing routes where suitable.",
   },
 ];
-
-// =========================================================
-// BANK MARQUEE
-// =========================================================
-
-function BankMarquee({
-  logos,
-  direction,
-}: {
-  logos: {
-    name: string;
-    logo: string;
-  }[];
-  direction: "left" | "right";
-}) {
-  const animationClass =
-    direction === "left" ? "bank-marquee-left" : "bank-marquee-right";
-
-  return (
-    <div className="relative overflow-hidden">
-      <div className={`flex w-max ${animationClass}`}>
-        {/* First set */}
-        <div className="flex shrink-0 items-center gap-10 px-5 sm:gap-14">
-          {logos.map((bank) => (
-            <div
-              key={bank.name}
-              className="flex h-24 w-[240px] shrink-0 items-center justify-center rounded-xl bg-white px-6"
-            >
-              <img
-                src={bank.logo}
-                alt={bank.name}
-                className="block max-h-16 w-auto max-w-[205px] object-contain"
-              />
-            </div>
-          ))}
-        </div>
-
-        {/* Duplicate set for seamless marquee */}
-        <div
-          className="flex shrink-0 items-center gap-10 px-5 sm:gap-14"
-          aria-hidden="true"
-        >
-          {logos.map((bank) => (
-            <div
-              key={`duplicate-${bank.name}`}
-              className="flex h-24 w-[240px] shrink-0 items-center justify-center rounded-xl bg-white px-6"
-            >
-              <img
-                src={bank.logo}
-                alt=""
-                className="block max-h-16 w-auto max-w-[205px] object-contain"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // =========================================================
 // ABOUT PAGE
@@ -296,41 +160,6 @@ function About() {
                 </article>
               </Reveal>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          FINANCING LANDSCAPE
-      ========================================================= */}
-
-      <section className="overflow-hidden bg-[#FBFAF7] py-14 sm:py-16">
-        <div className="mx-auto max-w-7xl px-6">
-          <Reveal>
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#A98C4F]">
-                Financing Landscape
-              </p>
-
-              <h2 className="mt-4 text-3xl font-semibold tracking-tight text-[#071B2D] sm:text-4xl">
-                Access to a Broad Financing Landscape
-              </h2>
-
-              <p className="mt-5 text-base leading-7 text-slate-600 sm:text-lg">
-                A selection of conventional and Islamic institutions relevant to
-                the UAE mortgage and property-financing landscape.
-              </p>
-            </div>
-          </Reveal>
-
-          <div className="mt-14 space-y-10">
-            <Reveal>
-              <BankMarquee logos={conventionalBankLogos} direction="left" />
-            </Reveal>
-
-            <Reveal delay={120}>
-              <BankMarquee logos={islamicBankLogos} direction="right" />
-            </Reveal>
           </div>
         </div>
       </section>

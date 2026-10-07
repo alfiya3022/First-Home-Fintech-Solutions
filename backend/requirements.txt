@@ -1,3 +1,2 @@
 uvicorn[standard]
 email-validator
-resend

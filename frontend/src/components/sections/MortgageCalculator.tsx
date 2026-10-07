@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 type ResidencyStatus = "UAE national" | "UAE resident" | "Non resident";
 
@@ -67,6 +67,14 @@ function getMinimumDownPayment(
 }
 
 function MortgageCalculator() {
+  /*
+   * --------------------------------------------
+   * ACTUAL CALCULATOR VALUES
+   * --------------------------------------------
+   *
+   * These are intentionally separate from the
+   * visible input strings.
+   */
   const [propertyPrice, setPropertyPrice] = useState(
     DEFAULT_VALUES.propertyPrice,
   );
@@ -81,9 +89,59 @@ function MortgageCalculator() {
     DEFAULT_VALUES.residencyStatus,
   );
 
-  const minimumDownPayment = useMemo(
-    () => getMinimumDownPayment(propertyPrice, residencyStatus),
-    [propertyPrice, residencyStatus],
+  /*
+   * --------------------------------------------
+   * VISIBLE INPUT VALUES
+   * --------------------------------------------
+   *
+   * Empty string = show placeholder "0".
+   */
+  const [propertyPriceInput, setPropertyPriceInput] = useState("");
+
+  const [downPaymentInput, setDownPaymentInput] = useState("");
+
+  const [loanAmountInput, setLoanAmountInput] = useState("");
+
+  const [loanPeriodInput, setLoanPeriodInput] = useState("");
+
+  const [interestRateInput, setInterestRateInput] = useState("");
+
+  /*
+   * --------------------------------------------
+   * VALIDATION
+   * --------------------------------------------
+   */
+  const [propertyPriceError, setPropertyPriceError] = useState<string | null>(
+    null,
+  );
+
+  const [downPaymentError, setDownPaymentError] = useState<string | null>(null);
+
+  const [loanAmountError, setLoanAmountError] = useState<string | null>(null);
+
+  const [loanPeriodError, setLoanPeriodError] = useState<string | null>(null);
+
+  const [interestRateError, setInterestRateError] = useState<string | null>(
+    null,
+  );
+
+  const [calculateError, setCalculateError] = useState<string | null>(null);
+
+  /*
+   * --------------------------------------------
+   * RESULT STATE
+   * --------------------------------------------
+   */
+  const [hasCalculated, setHasCalculated] = useState(false);
+
+  /*
+   * --------------------------------------------
+   * DERIVED VALUES
+   * --------------------------------------------
+   */
+  const minimumDownPayment = getMinimumDownPayment(
+    propertyPrice,
+    residencyStatus,
   );
 
   const maximumDownPayment = propertyPrice;
@@ -94,6 +152,8 @@ function MortgageCalculator() {
   const maximumLoanPercentage = 100 - minimumDownPaymentPercentage;
 
   const loanAmount = Math.max(propertyPrice - downPayment, 0);
+
+  const maximumLoanAmount = Math.max(propertyPrice - minimumDownPayment, 0);
 
   const loanPercentage =
     propertyPrice > 0 ? (loanAmount / propertyPrice) * 100 : 0;
@@ -107,80 +167,663 @@ function MortgageCalculator() {
     loanPeriod,
   );
 
-  function updatePropertyPrice(value: number) {
-    if (!Number.isFinite(value)) return;
+  /*
+   * --------------------------------------------
+   * HELPER
+   * --------------------------------------------
+   */
+  function hideResult() {
+    setHasCalculated(false);
+    setCalculateError(null);
+  }
 
+  /*
+   * --------------------------------------------
+   * PURCHASE PRICE
+   * --------------------------------------------
+   */
+  function handlePropertyPriceInputChange(value: string) {
+    setPropertyPriceInput(value);
+    hideResult();
+
+    if (value.trim() === "") {
+      setPropertyPriceError(null);
+      return;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      setPropertyPriceError("Please enter a valid purchase price.");
+      return;
+    }
+
+    if (numericValue < PROPERTY_PRICE_MIN) {
+      setPropertyPriceError(
+        `Minimum purchase price is ${formatAED(PROPERTY_PRICE_MIN)} AED.`,
+      );
+      return;
+    }
+
+    if (numericValue > PROPERTY_PRICE_MAX) {
+      setPropertyPriceError(
+        `Maximum purchase price is ${formatAED(PROPERTY_PRICE_MAX)} AED.`,
+      );
+      return;
+    }
+
+    setPropertyPriceError(null);
+
+    setPropertyPrice(numericValue);
+
+    const nextMinimumDownPayment = getMinimumDownPayment(
+      numericValue,
+      residencyStatus,
+    );
+
+    const nextDownPayment = clamp(
+      downPayment,
+      nextMinimumDownPayment,
+      numericValue,
+    );
+
+    setDownPayment(nextDownPayment);
+
+    /*
+     * If the user has already entered a down payment,
+     * keep it synchronized with the new property value.
+     */
+    if (downPaymentInput.trim() !== "") {
+      setDownPaymentInput(String(Math.round(nextDownPayment)));
+      setDownPaymentError(null);
+    }
+
+    /*
+     * Loan amount is derived from property price
+     * and down payment, so clear its visible value
+     * if it has not been manually entered yet.
+     */
+    if (loanAmountInput.trim() !== "") {
+      const nextLoanAmount = numericValue - nextDownPayment;
+
+      setLoanAmountInput(String(Math.round(nextLoanAmount)));
+      setLoanAmountError(null);
+    }
+  }
+
+  function handlePropertyPriceBlur() {
+    if (propertyPriceInput.trim() === "") {
+      setPropertyPriceError("Please enter a purchase price.");
+      return;
+    }
+
+    const numericValue = Number(propertyPriceInput);
+
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < PROPERTY_PRICE_MIN ||
+      numericValue > PROPERTY_PRICE_MAX
+    ) {
+      return;
+    }
+
+    setPropertyPriceInput(String(Math.round(numericValue)));
+  }
+
+  function handlePropertyPriceSlider(value: number) {
     const nextPropertyPrice = clamp(
       value,
       PROPERTY_PRICE_MIN,
       PROPERTY_PRICE_MAX,
     );
 
+    setPropertyPrice(nextPropertyPrice);
+
+    setPropertyPriceInput(String(Math.round(nextPropertyPrice)));
+
+    setPropertyPriceError(null);
+    hideResult();
+
     const nextMinimumDownPayment = getMinimumDownPayment(
       nextPropertyPrice,
       residencyStatus,
     );
 
-    setPropertyPrice(nextPropertyPrice);
-
-    setDownPayment(
-      Math.max(
-        nextMinimumDownPayment,
-        Math.min(downPayment, nextPropertyPrice),
-      ),
+    const nextDownPayment = clamp(
+      downPayment,
+      nextMinimumDownPayment,
+      nextPropertyPrice,
     );
+
+    setDownPayment(nextDownPayment);
+
+    if (downPaymentInput.trim() !== "") {
+      setDownPaymentInput(String(Math.round(nextDownPayment)));
+      setDownPaymentError(null);
+    }
+
+    if (loanAmountInput.trim() !== "") {
+      const nextLoanAmount = nextPropertyPrice - nextDownPayment;
+
+      setLoanAmountInput(String(Math.round(nextLoanAmount)));
+      setLoanAmountError(null);
+    }
   }
 
+  /*
+   * --------------------------------------------
+   * RESIDENCY
+   * --------------------------------------------
+   */
   function updateResidencyStatus(status: ResidencyStatus) {
     setResidencyStatus(status);
+    hideResult();
 
     const nextMinimumDownPayment = getMinimumDownPayment(propertyPrice, status);
 
-    setDownPayment(
-      Math.max(nextMinimumDownPayment, Math.min(downPayment, propertyPrice)),
+    setDownPayment(nextMinimumDownPayment);
+
+    /*
+     * Only update the visible field if the user
+     * has already interacted with it.
+     */
+    if (downPaymentInput.trim() !== "") {
+      setDownPaymentInput(String(Math.round(nextMinimumDownPayment)));
+    }
+
+    setDownPaymentError(null);
+
+    const nextLoanAmount = propertyPrice - nextMinimumDownPayment;
+
+    if (loanAmountInput.trim() !== "") {
+      setLoanAmountInput(String(Math.round(nextLoanAmount)));
+    }
+
+    setLoanAmountError(null);
+  }
+
+  /*
+   * --------------------------------------------
+   * DOWN PAYMENT
+   * --------------------------------------------
+   */
+  function handleDownPaymentInputChange(value: string) {
+    setDownPaymentInput(value);
+    hideResult();
+
+    if (value.trim() === "") {
+      setDownPaymentError(null);
+      return;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      setDownPaymentError("Please enter a valid down payment.");
+      return;
+    }
+
+    if (numericValue < minimumDownPayment) {
+      setDownPaymentError(
+        `Minimum down payment is ${formatAED(
+          minimumDownPayment,
+        )} AED (${minimumDownPaymentPercentage}%).`,
+      );
+      return;
+    }
+
+    if (numericValue > maximumDownPayment) {
+      setDownPaymentError(
+        `Down payment cannot exceed ${formatAED(maximumDownPayment)} AED.`,
+      );
+      return;
+    }
+
+    setDownPaymentError(null);
+    setDownPayment(numericValue);
+
+    /*
+     * If loan amount has already been entered,
+     * keep it synchronized.
+     */
+    if (loanAmountInput.trim() !== "") {
+      const nextLoanAmount = propertyPrice - numericValue;
+
+      setLoanAmountInput(String(Math.round(nextLoanAmount)));
+
+      setLoanAmountError(null);
+    }
+  }
+
+  function handleDownPaymentBlur() {
+    if (downPaymentInput.trim() === "") {
+      setDownPaymentError("Please enter a down payment.");
+      return;
+    }
+
+    const numericValue = Number(downPaymentInput);
+
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < minimumDownPayment ||
+      numericValue > maximumDownPayment
+    ) {
+      return;
+    }
+
+    setDownPaymentInput(String(Math.round(numericValue)));
+  }
+
+  function handleDownPaymentSlider(value: number) {
+    const nextDownPayment = clamp(
+      value,
+      minimumDownPayment,
+      maximumDownPayment,
     );
+
+    setDownPayment(nextDownPayment);
+
+    setDownPaymentInput(String(Math.round(nextDownPayment)));
+
+    setDownPaymentError(null);
+    hideResult();
+
+    const nextLoanAmount = propertyPrice - nextDownPayment;
+
+    if (loanAmountInput.trim() !== "") {
+      setLoanAmountInput(String(Math.round(nextLoanAmount)));
+      setLoanAmountError(null);
+    }
   }
 
-  function updateDownPayment(value: number) {
-    if (!Number.isFinite(value)) return;
+  /*
+   * --------------------------------------------
+   * LOAN AMOUNT
+   * --------------------------------------------
+   */
+  function handleLoanAmountInputChange(value: string) {
+    setLoanAmountInput(value);
+    hideResult();
 
-    setDownPayment(clamp(value, minimumDownPayment, maximumDownPayment));
+    if (value.trim() === "") {
+      setLoanAmountError(null);
+      return;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      setLoanAmountError("Please enter a valid loan amount.");
+      return;
+    }
+
+    if (numericValue < 0) {
+      setLoanAmountError("Loan amount cannot be negative.");
+      return;
+    }
+
+    if (numericValue > maximumLoanAmount) {
+      setLoanAmountError(
+        `Maximum loan amount is ${formatAED(
+          maximumLoanAmount,
+        )} AED (${maximumLoanPercentage}%).`,
+      );
+      return;
+    }
+
+    setLoanAmountError(null);
+
+    const nextDownPayment = propertyPrice - numericValue;
+
+    setLoanAmountInput(value);
+    setDownPayment(nextDownPayment);
+
+    if (downPaymentInput.trim() !== "") {
+      setDownPaymentInput(String(Math.round(nextDownPayment)));
+    }
+
+    setDownPaymentError(null);
   }
 
-  function updateLoanAmount(value: number) {
-    if (!Number.isFinite(value)) return;
+  function handleLoanAmountBlur() {
+    if (loanAmountInput.trim() === "") {
+      setLoanAmountError("Please enter a loan amount.");
+      return;
+    }
 
-    const maximumLoanAmount = propertyPrice - minimumDownPayment;
+    const numericValue = Number(loanAmountInput);
 
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < 0 ||
+      numericValue > maximumLoanAmount
+    ) {
+      return;
+    }
+
+    setLoanAmountInput(String(Math.round(numericValue)));
+  }
+
+  function handleLoanAmountSlider(value: number) {
     const nextLoanAmount = clamp(value, 0, maximumLoanAmount);
 
-    setDownPayment(propertyPrice - nextLoanAmount);
+    const nextDownPayment = propertyPrice - nextLoanAmount;
+
+    setDownPayment(nextDownPayment);
+
+    setLoanAmountInput(String(Math.round(nextLoanAmount)));
+
+    setLoanAmountError(null);
+    hideResult();
+
+    if (downPaymentInput.trim() !== "") {
+      setDownPaymentInput(String(Math.round(nextDownPayment)));
+    }
+
+    setDownPaymentError(null);
   }
 
-  function updateLoanPeriod(value: number) {
-    if (!Number.isFinite(value)) return;
+  /*
+   * --------------------------------------------
+   * LOAN PERIOD
+   * --------------------------------------------
+   */
+  function handleLoanPeriodInputChange(value: string) {
+    setLoanPeriodInput(value);
+    hideResult();
 
-    setLoanPeriod(clamp(value, LOAN_PERIOD_MIN, LOAN_PERIOD_MAX));
+    if (value.trim() === "") {
+      setLoanPeriodError(null);
+      return;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      setLoanPeriodError("Please enter a valid loan period.");
+      return;
+    }
+
+    if (numericValue < LOAN_PERIOD_MIN) {
+      setLoanPeriodError(`Minimum loan period is ${LOAN_PERIOD_MIN} year.`);
+      return;
+    }
+
+    if (numericValue > LOAN_PERIOD_MAX) {
+      setLoanPeriodError(`Maximum loan period is ${LOAN_PERIOD_MAX} years.`);
+      return;
+    }
+
+    setLoanPeriodError(null);
+    setLoanPeriod(numericValue);
   }
 
-  function updateInterestRate(value: number) {
-    if (!Number.isFinite(value)) return;
+  function handleLoanPeriodBlur() {
+    if (loanPeriodInput.trim() === "") {
+      setLoanPeriodError("Please enter a loan period.");
+      return;
+    }
 
-    setInterestRate(clamp(value, INTEREST_RATE_MIN, INTEREST_RATE_MAX));
+    const numericValue = Number(loanPeriodInput);
+
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < LOAN_PERIOD_MIN ||
+      numericValue > LOAN_PERIOD_MAX
+    ) {
+      return;
+    }
+
+    setLoanPeriodInput(String(numericValue));
   }
 
+  function handleLoanPeriodSlider(value: number) {
+    const nextLoanPeriod = clamp(value, LOAN_PERIOD_MIN, LOAN_PERIOD_MAX);
+
+    setLoanPeriod(nextLoanPeriod);
+
+    setLoanPeriodInput(String(nextLoanPeriod));
+
+    setLoanPeriodError(null);
+    hideResult();
+  }
+
+  /*
+   * --------------------------------------------
+   * INTEREST RATE
+   * --------------------------------------------
+   */
+  function handleInterestRateInputChange(value: string) {
+    setInterestRateInput(value);
+    hideResult();
+
+    if (value.trim() === "") {
+      setInterestRateError(null);
+      return;
+    }
+
+    /*
+     * Allow:
+     * 4
+     * 4.
+     * 4.2
+     * 4.25
+     */
+    if (!/^\d*\.?\d*$/.test(value)) {
+      setInterestRateError("Please enter a valid interest rate.");
+      return;
+    }
+
+    const numericValue = Number(value);
+
+    if (!Number.isFinite(numericValue)) {
+      setInterestRateError("Please enter a valid interest rate.");
+      return;
+    }
+
+    if (numericValue < INTEREST_RATE_MIN) {
+      setInterestRateError(`Minimum interest rate is ${INTEREST_RATE_MIN}%.`);
+      return;
+    }
+
+    if (numericValue > INTEREST_RATE_MAX) {
+      setInterestRateError(`Maximum interest rate is ${INTEREST_RATE_MAX}%.`);
+      return;
+    }
+
+    setInterestRateError(null);
+    setInterestRate(numericValue);
+  }
+
+  function handleInterestRateBlur() {
+    if (interestRateInput.trim() === "") {
+      setInterestRateError("Please enter an interest rate.");
+      return;
+    }
+
+    const numericValue = Number(interestRateInput);
+
+    if (
+      !Number.isFinite(numericValue) ||
+      numericValue < INTEREST_RATE_MIN ||
+      numericValue > INTEREST_RATE_MAX
+    ) {
+      return;
+    }
+
+    setInterestRateInput(String(numericValue));
+  }
+
+  function handleInterestRateSlider(value: number) {
+    const nextInterestRate = clamp(value, INTEREST_RATE_MIN, INTEREST_RATE_MAX);
+
+    setInterestRate(nextInterestRate);
+
+    setInterestRateInput(String(nextInterestRate));
+
+    setInterestRateError(null);
+    hideResult();
+  }
+
+  /*
+   * --------------------------------------------
+   * CALCULATE
+   * --------------------------------------------
+   */
+  function handleCalculate() {
+    let hasError = false;
+
+    /*
+     * PURCHASE PRICE
+     */
+    if (propertyPriceInput.trim() === "") {
+      setPropertyPriceError("Please enter a purchase price.");
+      hasError = true;
+    } else {
+      const value = Number(propertyPriceInput);
+
+      if (
+        !Number.isFinite(value) ||
+        value < PROPERTY_PRICE_MIN ||
+        value > PROPERTY_PRICE_MAX
+      ) {
+        hasError = true;
+      }
+    }
+
+    /*
+     * DOWN PAYMENT
+     */
+    if (downPaymentInput.trim() === "") {
+      setDownPaymentError("Please enter a down payment.");
+      hasError = true;
+    } else {
+      const value = Number(downPaymentInput);
+
+      if (
+        !Number.isFinite(value) ||
+        value < minimumDownPayment ||
+        value > maximumDownPayment
+      ) {
+        hasError = true;
+      }
+    }
+
+    /*
+     * LOAN AMOUNT
+     */
+    if (loanAmountInput.trim() === "") {
+      setLoanAmountError("Please enter a loan amount.");
+      hasError = true;
+    } else {
+      const value = Number(loanAmountInput);
+
+      if (!Number.isFinite(value) || value < 0 || value > maximumLoanAmount) {
+        hasError = true;
+      }
+    }
+
+    /*
+     * LOAN PERIOD
+     */
+    if (loanPeriodInput.trim() === "") {
+      setLoanPeriodError("Please enter a loan period.");
+      hasError = true;
+    } else {
+      const value = Number(loanPeriodInput);
+
+      if (
+        !Number.isFinite(value) ||
+        value < LOAN_PERIOD_MIN ||
+        value > LOAN_PERIOD_MAX
+      ) {
+        hasError = true;
+      }
+    }
+
+    /*
+     * INTEREST RATE
+     */
+    if (interestRateInput.trim() === "") {
+      setInterestRateError("Please enter an interest rate.");
+      hasError = true;
+    } else {
+      const value = Number(interestRateInput);
+
+      if (
+        !Number.isFinite(value) ||
+        value < INTEREST_RATE_MIN ||
+        value > INTEREST_RATE_MAX
+      ) {
+        hasError = true;
+      }
+    }
+
+    if (hasError) {
+      setHasCalculated(false);
+      setCalculateError(
+        "Please correct the highlighted fields before calculating.",
+      );
+      return;
+    }
+
+    /*
+     * All inputs are valid.
+     */
+    setCalculateError(null);
+    setHasCalculated(true);
+  }
+
+  /*
+   * --------------------------------------------
+   * RESET
+   * --------------------------------------------
+   */
   function resetCalculator() {
+    /*
+     * Restore internal calculator values.
+     */
     setPropertyPrice(DEFAULT_VALUES.propertyPrice);
+
     setDownPayment(DEFAULT_VALUES.downPayment);
+
     setLoanPeriod(DEFAULT_VALUES.loanPeriod);
+
     setInterestRate(DEFAULT_VALUES.interestRate);
+
     setResidencyStatus(DEFAULT_VALUES.residencyStatus);
+
+    /*
+     * Clear visible inputs so the placeholder "0"
+     * appears again.
+     */
+    setPropertyPriceInput("");
+    setDownPaymentInput("");
+    setLoanAmountInput("");
+    setLoanPeriodInput("");
+    setInterestRateInput("");
+
+    /*
+     * Clear validation.
+     */
+    setPropertyPriceError(null);
+    setDownPaymentError(null);
+    setLoanAmountError(null);
+    setLoanPeriodError(null);
+    setInterestRateError(null);
+    setCalculateError(null);
+
+    /*
+     * Hide result.
+     */
+    setHasCalculated(false);
   }
 
   return (
     <section id="calculator" className="bg-[#071B2D] py-20 sm:py-24">
       <div className="mx-auto max-w-7xl px-6">
         <div className="grid items-start gap-12 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+          {/* LEFT SIDE */}
           <div className="lg:sticky lg:top-28">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#D9BC7A]">
               Mortgage Calculator
@@ -236,6 +879,7 @@ function MortgageCalculator() {
             </a>
           </div>
 
+          {/* CALCULATOR CARD */}
           <div className="rounded-3xl bg-white p-6 shadow-[0_20px_60px_rgba(0,0,0,0.15)] sm:p-8 lg:p-10">
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -258,6 +902,7 @@ function MortgageCalculator() {
             </div>
 
             <div className="mt-8 space-y-8">
+              {/* PURCHASE PRICE */}
               <div>
                 <div className="flex items-center justify-between gap-4">
                   <label
@@ -274,11 +919,17 @@ function MortgageCalculator() {
                       min={PROPERTY_PRICE_MIN}
                       max={PROPERTY_PRICE_MAX}
                       step="10000"
-                      value={propertyPrice}
+                      value={propertyPriceInput}
+                      placeholder="0"
                       onChange={(event) =>
-                        updatePropertyPrice(Number(event.target.value))
+                        handlePropertyPriceInputChange(event.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-12 text-right text-sm font-semibold text-[#071B2D] outline-none transition-colors focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                      onBlur={handlePropertyPriceBlur}
+                      className={`w-full rounded-lg border bg-white py-2 pl-3 pr-12 text-right text-sm font-semibold outline-none transition-colors ${
+                        propertyPriceError
+                          ? "border-red-400 text-[#071B2D] focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                          : "border-slate-200 text-[#071B2D] focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                      } placeholder:text-slate-300`}
                     />
 
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
@@ -287,6 +938,12 @@ function MortgageCalculator() {
                   </div>
                 </div>
 
+                {propertyPriceError && (
+                  <p className="mt-2 text-right text-xs font-medium text-red-500">
+                    {propertyPriceError}
+                  </p>
+                )}
+
                 <input
                   type="range"
                   min={PROPERTY_PRICE_MIN}
@@ -294,18 +951,20 @@ function MortgageCalculator() {
                   step="10000"
                   value={propertyPrice}
                   onChange={(event) =>
-                    updatePropertyPrice(Number(event.target.value))
+                    handlePropertyPriceSlider(Number(event.target.value))
                   }
-                  className="mt-4 h-1.5 w-full cursor-pointer accent-[#A98C4F]"
+                  className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-300 accent-[#A98C4F]"
                   aria-label="Purchase price"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-slate-400">
                   <span>{formatAED(PROPERTY_PRICE_MIN)} AED</span>
+
                   <span>{formatAED(PROPERTY_PRICE_MAX)} AED</span>
                 </div>
               </div>
 
+              {/* RESIDENCY STATUS */}
               <fieldset>
                 <legend className="text-sm font-medium text-[#071B2D]">
                   Residency Status
@@ -360,6 +1019,7 @@ function MortgageCalculator() {
                 </div>
               </fieldset>
 
+              {/* DOWN PAYMENT */}
               <div>
                 <div className="flex items-center justify-between gap-4">
                   <label
@@ -377,11 +1037,17 @@ function MortgageCalculator() {
                         min={minimumDownPayment}
                         max={maximumDownPayment}
                         step="10000"
-                        value={Math.round(downPayment)}
+                        value={downPaymentInput}
+                        placeholder="0"
                         onChange={(event) =>
-                          updateDownPayment(Number(event.target.value))
+                          handleDownPaymentInputChange(event.target.value)
                         }
-                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-12 text-right text-sm font-semibold text-[#071B2D] outline-none transition-colors focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                        onBlur={handleDownPaymentBlur}
+                        className={`w-full rounded-lg border bg-white py-2 pl-3 pr-12 text-right text-sm font-semibold outline-none transition-colors ${
+                          downPaymentError
+                            ? "border-red-400 text-[#071B2D] focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                            : "border-slate-200 text-[#071B2D] focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                        } placeholder:text-slate-300`}
                       />
 
                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
@@ -395,6 +1061,12 @@ function MortgageCalculator() {
                   </div>
                 </div>
 
+                {downPaymentError && (
+                  <p className="mt-2 text-right text-xs font-medium text-red-500">
+                    {downPaymentError}
+                  </p>
+                )}
+
                 <input
                   type="range"
                   min={minimumDownPayment}
@@ -402,9 +1074,9 @@ function MortgageCalculator() {
                   step="10000"
                   value={downPayment}
                   onChange={(event) =>
-                    updateDownPayment(Number(event.target.value))
+                    handleDownPaymentSlider(Number(event.target.value))
                   }
-                  className="mt-4 h-1.5 w-full cursor-pointer accent-[#A98C4F]"
+                  className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-300 accent-[#A98C4F]"
                   aria-label="Down payment"
                 />
 
@@ -420,6 +1092,7 @@ function MortgageCalculator() {
                 </p>
               </div>
 
+              {/* LOAN AMOUNT */}
               <div>
                 <div className="flex items-center justify-between gap-4">
                   <label
@@ -435,13 +1108,19 @@ function MortgageCalculator() {
                         id="loan-amount"
                         type="number"
                         min="0"
-                        max={propertyPrice - minimumDownPayment}
+                        max={maximumLoanAmount}
                         step="10000"
-                        value={Math.round(loanAmount)}
+                        value={loanAmountInput}
+                        placeholder="0"
                         onChange={(event) =>
-                          updateLoanAmount(Number(event.target.value))
+                          handleLoanAmountInputChange(event.target.value)
                         }
-                        className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-12 text-right text-sm font-semibold text-[#071B2D] outline-none transition-colors focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                        onBlur={handleLoanAmountBlur}
+                        className={`w-full rounded-lg border bg-white py-2 pl-3 pr-12 text-right text-sm font-semibold outline-none transition-colors ${
+                          loanAmountError
+                            ? "border-red-400 text-[#071B2D] focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                            : "border-slate-200 text-[#071B2D] focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                        } placeholder:text-slate-300`}
                       />
 
                       <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
@@ -455,28 +1134,33 @@ function MortgageCalculator() {
                   </div>
                 </div>
 
+                {loanAmountError && (
+                  <p className="mt-2 text-right text-xs font-medium text-red-500">
+                    {loanAmountError}
+                  </p>
+                )}
+
                 <input
                   type="range"
                   min="0"
-                  max={propertyPrice - minimumDownPayment}
+                  max={maximumLoanAmount}
                   step="10000"
                   value={loanAmount}
                   onChange={(event) =>
-                    updateLoanAmount(Number(event.target.value))
+                    handleLoanAmountSlider(Number(event.target.value))
                   }
-                  className="mt-4 h-1.5 w-full cursor-pointer accent-[#A98C4F]"
+                  className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-300 accent-[#A98C4F]"
                   aria-label="Loan amount"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-slate-400">
                   <span>0 AED</span>
 
-                  <span>
-                    {formatAED(propertyPrice - minimumDownPayment)} AED
-                  </span>
+                  <span>{formatAED(maximumLoanAmount)} AED</span>
                 </div>
               </div>
 
+              {/* LOAN PERIOD */}
               <div>
                 <div className="flex items-center justify-between gap-4">
                   <label
@@ -493,11 +1177,17 @@ function MortgageCalculator() {
                       min={LOAN_PERIOD_MIN}
                       max={LOAN_PERIOD_MAX}
                       step="1"
-                      value={loanPeriod}
+                      value={loanPeriodInput}
+                      placeholder="0"
                       onChange={(event) =>
-                        updateLoanPeriod(Number(event.target.value))
+                        handleLoanPeriodInputChange(event.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-16 text-right text-sm font-semibold text-[#071B2D] outline-none transition-colors focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                      onBlur={handleLoanPeriodBlur}
+                      className={`w-full rounded-lg border bg-white py-2 pl-3 pr-16 text-right text-sm font-semibold outline-none transition-colors ${
+                        loanPeriodError
+                          ? "border-red-400 text-[#071B2D] focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                          : "border-slate-200 text-[#071B2D] focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                      } placeholder:text-slate-300`}
                     />
 
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
@@ -506,6 +1196,12 @@ function MortgageCalculator() {
                   </div>
                 </div>
 
+                {loanPeriodError && (
+                  <p className="mt-2 text-right text-xs font-medium text-red-500">
+                    {loanPeriodError}
+                  </p>
+                )}
+
                 <input
                   type="range"
                   min={LOAN_PERIOD_MIN}
@@ -513,18 +1209,20 @@ function MortgageCalculator() {
                   step="1"
                   value={loanPeriod}
                   onChange={(event) =>
-                    updateLoanPeriod(Number(event.target.value))
+                    handleLoanPeriodSlider(Number(event.target.value))
                   }
-                  className="mt-4 h-1.5 w-full cursor-pointer accent-[#A98C4F]"
+                  className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-300 accent-[#A98C4F]"
                   aria-label="Loan period"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-slate-400">
                   <span>{LOAN_PERIOD_MIN} year</span>
+
                   <span>{LOAN_PERIOD_MAX} years</span>
                 </div>
               </div>
 
+              {/* INTEREST RATE */}
               <div>
                 <div className="flex items-center justify-between gap-4">
                   <label
@@ -541,11 +1239,17 @@ function MortgageCalculator() {
                       min={INTEREST_RATE_MIN}
                       max={INTEREST_RATE_MAX}
                       step="0.01"
-                      value={interestRate}
+                      value={interestRateInput}
+                      placeholder="0"
                       onChange={(event) =>
-                        updateInterestRate(Number(event.target.value))
+                        handleInterestRateInputChange(event.target.value)
                       }
-                      className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-3 pr-8 text-right text-sm font-semibold text-[#071B2D] outline-none transition-colors focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                      onBlur={handleInterestRateBlur}
+                      className={`w-full rounded-lg border bg-white py-2 pl-3 pr-8 text-right text-sm font-semibold outline-none transition-colors ${
+                        interestRateError
+                          ? "border-red-400 text-[#071B2D] focus:border-red-500 focus:ring-2 focus:ring-red-200"
+                          : "border-slate-200 text-[#071B2D] focus:border-[#A98C4F] focus:ring-2 focus:ring-[#D9BC7A]/20"
+                      } placeholder:text-slate-300`}
                     />
 
                     <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-400">
@@ -554,6 +1258,12 @@ function MortgageCalculator() {
                   </div>
                 </div>
 
+                {interestRateError && (
+                  <p className="mt-2 text-right text-xs font-medium text-red-500">
+                    {interestRateError}
+                  </p>
+                )}
+
                 <input
                   type="range"
                   min={INTEREST_RATE_MIN}
@@ -561,71 +1271,92 @@ function MortgageCalculator() {
                   step="0.01"
                   value={interestRate}
                   onChange={(event) =>
-                    updateInterestRate(Number(event.target.value))
+                    handleInterestRateSlider(Number(event.target.value))
                   }
-                  className="mt-4 h-1.5 w-full cursor-pointer accent-[#A98C4F]"
+                  className="mt-4 h-1.5 w-full cursor-pointer appearance-none rounded-full bg-slate-300 accent-[#A98C4F]"
                   aria-label="Interest rate"
                 />
 
                 <div className="mt-2 flex justify-between text-xs text-slate-400">
                   <span>{INTEREST_RATE_MIN}%</span>
+
                   <span>{INTEREST_RATE_MAX}%</span>
                 </div>
               </div>
             </div>
 
+            {/* CALCULATE ACTION */}
             <div className="mt-10 border-t border-slate-200 pt-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A98C4F]">
-                Estimate your monthly mortgage payment
-              </p>
+              {calculateError && (
+                <p className="mb-4 rounded-xl bg-red-50 px-4 py-3 text-sm font-medium text-red-600">
+                  {calculateError}
+                </p>
+              )}
 
-              <div className="mt-4 rounded-2xl bg-[#071B2D] p-6 text-white sm:p-7">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <p className="text-sm text-white/60">Monthly payment</p>
+              <button
+                type="button"
+                onClick={handleCalculate}
+                className="w-full rounded-xl bg-[#D9BC7A] px-6 py-3.5 text-sm font-semibold text-[#071B2D] transition-colors hover:bg-[#E3CA96]"
+              >
+                Calculate Mortgage
+              </button>
+            </div>
 
-                    <p
-                      className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl"
-                      aria-live="polite"
-                    >
-                      {formatAED(monthlyPayment)} AED
+            {/* RESULT */}
+            {hasCalculated && (
+              <div className="mt-8 border-t border-slate-200 pt-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#A98C4F]">
+                  Estimate your monthly mortgage payment
+                </p>
+
+                <div className="mt-4 rounded-2xl bg-[#071B2D] p-6 text-white sm:p-7">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <p className="text-sm text-white/60">Monthly payment</p>
+
+                      <p
+                        className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl"
+                        aria-live="polite"
+                      >
+                        {formatAED(monthlyPayment)} AED
+                      </p>
+                    </div>
+
+                    <p className="text-sm text-white/55">
+                      with interest rate of{" "}
+                      <span className="font-semibold text-white">
+                        {interestRate}%
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-xl border border-slate-200 bg-[#FBFAF7] p-4">
+                    <p className="text-xs text-slate-500">Down payment</p>
+
+                    <p className="mt-1 text-base font-semibold text-[#071B2D]">
+                      {formatAED(downPayment)} AED
                     </p>
                   </div>
 
-                  <p className="text-sm text-white/55">
-                    with interest rate of{" "}
-                    <span className="font-semibold text-white">
-                      {interestRate}%
-                    </span>
-                  </p>
+                  <div className="rounded-xl border border-slate-200 bg-[#FBFAF7] p-4">
+                    <p className="text-xs text-slate-500">Loan amount</p>
+
+                    <p className="mt-1 text-base font-semibold text-[#071B2D]">
+                      {formatAED(loanAmount)} AED
+                    </p>
+                  </div>
                 </div>
+
+                <p className="mt-6 text-xs leading-5 text-slate-500">
+                  This calculator provides an illustrative estimate only. Actual
+                  mortgage repayments, rates, fees, eligibility, and financing
+                  terms may vary depending on the lender and your individual
+                  circumstances.
+                </p>
               </div>
-
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-slate-200 bg-[#FBFAF7] p-4">
-                  <p className="text-xs text-slate-500">Down payment</p>
-
-                  <p className="mt-1 text-base font-semibold text-[#071B2D]">
-                    {formatAED(downPayment)} AED
-                  </p>
-                </div>
-
-                <div className="rounded-xl border border-slate-200 bg-[#FBFAF7] p-4">
-                  <p className="text-xs text-slate-500">Loan amount</p>
-
-                  <p className="mt-1 text-base font-semibold text-[#071B2D]">
-                    {formatAED(loanAmount)} AED
-                  </p>
-                </div>
-              </div>
-
-              <p className="mt-6 text-xs leading-5 text-slate-500">
-                This calculator provides an illustrative estimate only. Actual
-                mortgage repayments, rates, fees, eligibility, and financing
-                terms may vary depending on the lender and your individual
-                circumstances.
-              </p>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -47,7 +47,7 @@ const socialLinks = [
   },
   {
     label: "Website",
-    href: "https://www.firsthomefintech.com",
+    href: "https://firsthomefintech.ae",
     icon: (
       <svg
         viewBox="0 0 24 24"
@@ -57,7 +57,7 @@ const socialLinks = [
       >
         <circle cx="12" cy="12" r="9" />
         <path d="M3 12h18" />
-        <path d="M12 3c2.2 2.4 3.3 5.4 3.3 9s-1.1 6.6-3.3 9c-2.2 2.4-3.3 5.4-3.3-9S9.8 5.4 12 3Z" />
+        <path d="M12 3c2.2 2.4 3.3 5.4 3.3 9s-1.1 6.6-3.3 9c-2.2-2.4-3.3-5.4-3.3-9S9.8 5.4 12 3Z" />
       </svg>
     ),
   },
@@ -75,30 +75,30 @@ function Footer() {
             <a
               href="/"
               aria-label="First Home Fintech Solutions home"
-              className="inline-block"
+              className="inline-flex items-center"
             >
               <img
                 src={logo}
                 alt="First Home Fintech Solutions"
-                className="h-14 w-auto"
+                className="h-20 w-auto object-contain sm:h-[88px]"
               />
             </a>
 
             {/* Address */}
-            <div className="mt-7">
+            <div className="mt-6">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D9BC7A]">
                 Visit Us
               </p>
 
               <p className="mt-3 max-w-xs text-sm leading-6 text-white/65">
-                Al Dubai Digital Park, IFZA Properties,
+                A1 Dubai Digital Park, IFZA Properties,
                 <br />
                 Dubai Silicon Oasis, Dubai
               </p>
             </div>
 
             {/* Phone */}
-            <div className="mt-4">
+            <div className="mt-5">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D9BC7A]">
                 Call Us
               </p>
@@ -111,6 +111,20 @@ function Footer() {
               </a>
             </div>
 
+            {/* Email */}
+            <div className="mt-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D9BC7A]">
+                Email Us
+              </p>
+
+              <a
+                href="mailto:admin@firsthomefintech.ae"
+                className="mt-2 inline-block text-sm text-white/65 transition-colors hover:text-[#D9BC7A]"
+              >
+                admin@firsthomefintech.ae
+              </a>
+            </div>
+
             {/* Social Links */}
             <div className="mt-6 flex items-center gap-2">
               {socialLinks.map((social) => (
@@ -118,28 +132,14 @@ function Footer() {
                   key={social.label}
                   href={social.href}
                   aria-label={social.label}
-                  target={social.label === "Website" ? "_blank" : undefined}
-                  rel={
-                    social.label === "Website"
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex size-9 items-center justify-center rounded-full border border-white/15 text-white/65 transition-colors hover:border-[#D9BC7A] hover:text-[#D9BC7A]"
                 >
                   {social.icon}
                 </a>
               ))}
             </div>
-
-            {/* Website */}
-            <a
-              href="https://www.firsthomefintech.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-block text-sm text-white/50 transition-colors hover:text-[#D9BC7A]"
-            >
-              www.firsthomefintech.com
-            </a>
           </div>
 
           {/* Navigation */}

@@ -38,30 +38,36 @@ function Header() {
         to-transparent
       "
     >
-      <div className="mx-auto flex h-24 max-w-7xl items-center justify-between px-6">
+      <div className="relative mx-auto flex h-25 max-w-7xl items-center px-6">
         {/* Logo */}
         <a
           href="/"
           aria-label="First Home Fintech Solutions home"
-          className="shrink-0"
+          className="flex shrink-0 items-center"
         >
           <img
             src={logo}
             alt="First Home Fintech Solutions"
-            className="h-14 w-auto"
+            className="h-25 w-auto object-contain sm:h-[75px]"
           />
         </a>
 
         {/* Desktop Navigation */}
         <nav
           aria-label="Main navigation"
-          className="hidden items-center gap-9 lg:flex"
+          className="
+            absolute left-1/2 hidden
+            -translate-x-1/2
+            items-center gap-8
+            lg:flex
+          "
         >
           {navigationLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}
               className="
+                whitespace-nowrap
                 text-base font-medium text-white/90
                 transition-colors
                 hover:text-[#D9BC7A]
@@ -77,6 +83,7 @@ function Header() {
           type="button"
           aria-label="Open navigation menu"
           className="
+            ml-auto
             flex size-10 items-center justify-center
             rounded-lg
             border border-white/20

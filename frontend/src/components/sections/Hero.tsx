@@ -1,33 +1,50 @@
 import { useEffect, useState } from "react";
-import { ArrowRight, Calculator, Check, Info } from "lucide-react";
+import { ArrowRight, Calculator, Info } from "lucide-react";
 
-import burDubaiImage from "@/assets/images/hero/bur dubai.jpg";
-import deiraImage from "@/assets/images/hero/deira.jpg";
-import downtownImage from "@/assets/images/hero/downdown.png";
-import internationalCityImage from "@/assets/images/hero/international city.jpg";
-import palmJumerahImage from "@/assets/images/hero/palm jumerah.jpg";
-
-import b1Image from "@/assets/images/hero/b1.jpg";
-import b2Image from "@/assets/images/hero/b2.jpg";
-import b3Image from "@/assets/images/hero/b3.jpg";
-import b4Image from "@/assets/images/hero/b4.png";
-import b5Image from "@/assets/images/hero/b5.png";
-import b7Image from "@/assets/images/hero/b7.jpg";
-import b8Image from "@/assets/images/hero/b8.png";
+import heroImageA from "@/assets/images/hero/a.jpg";
+import heroImageB from "@/assets/images/hero/b.jpg";
+import heroImageC from "@/assets/images/hero/c.jpg";
+import heroImageD from "@/assets/images/hero/d.jpg";
+import heroImageE from "@/assets/images/hero/e.png";
+import heroImageF from "@/assets/images/hero/f.png";
+import heroImageG from "@/assets/images/hero/g.jpg";
+import heroImageH from "@/assets/images/hero/h.jpg";
+import heroImageI from "@/assets/images/hero/i.png";
+import heroImageJ from "@/assets/images/hero/j.jpg";
+import heroImageK from "@/assets/images/hero/k.jpg";
+import heroImageL from "@/assets/images/hero/l.jpg";
+import heroImageM from "@/assets/images/hero/m.jpg";
+import heroImageN from "@/assets/images/hero/n.jpg";
+import heroImageO from "@/assets/images/hero/o.jpg";
+import heroImageP from "@/assets/images/hero/p.jpg";
+import heroImageQ from "@/assets/images/hero/q.jpg";
+import heroImageR from "@/assets/images/hero/r.jpg";
+import heroImageS from "@/assets/images/hero/s.jpg";
+import heroImageT from "@/assets/images/hero/t.jpg";
+import heroImageU from "@/assets/images/hero/u.jpg";
 
 const heroImages = [
-  burDubaiImage,
-  deiraImage,
-  downtownImage,
-  internationalCityImage,
-  palmJumerahImage,
-  b1Image,
-  b2Image,
-  b3Image,
-  b4Image,
-  b5Image,
-  b7Image,
-  b8Image,
+  heroImageA,
+  heroImageB,
+  heroImageC,
+  heroImageD,
+  heroImageE,
+  heroImageF,
+  heroImageG,
+  heroImageH,
+  heroImageI,
+  heroImageJ,
+  heroImageK,
+  heroImageL,
+  heroImageM,
+  heroImageN,
+  heroImageO,
+  heroImageP,
+  heroImageQ,
+  heroImageR,
+  heroImageS,
+  heroImageT,
+  heroImageU,
 ];
 
 function Hero() {
@@ -86,15 +103,18 @@ function Hero() {
       />
 
       <div className="mx-auto flex min-h-[calc(100svh-5rem)] max-w-7xl items-center px-6 py-20">
-        <div className="max-w-3xl text-white">
-          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-6xl">
+        <div className="max-w-3xl pt-10 text-white sm:pt-12">
+          {/* Hero Heading */}
+          <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-tight sm:text-5xl lg:text-5xl">
             Smart Solutions for Smart Buyers
           </h1>
 
-          <p className="mb-5 text-xs font-medium uppercase tracking-[0.3em] text-white/75">
+          {/* Tagline */}
+          <p className="mt-3 text-xs font-medium uppercase tracking-[0.3em] text-white/75 sm:mt-4">
             Your Home. Our Expertise.
           </p>
 
+          {/* Description */}
           <p className="mt-6 max-w-2xl text-base leading-7 text-white/80 sm:text-lg">
             Expert mortgage guidance designed to help you navigate your home
             financing journey with clarity and confidence.
@@ -120,18 +140,17 @@ function Hero() {
           </div>
 
           {/* EIBOR RATES */}
-          {/* EIBOR RATES */}
           <div
             className="
-    mt-6 w-full max-w-xs
-    -translate-y-1
-    rounded-lg
-    border border-white/80
-    border-l-4 border-l-[#D6BE8A]
-    bg-white
-    px-4 py-3
-    shadow-[0_10px_28px_rgba(0,0,0,0.20)]
-  "
+              mt-6 w-full max-w-xs
+              -translate-y-1
+              rounded-lg
+              border border-white/80
+              border-l-4 border-l-[#D6BE8A]
+              bg-white
+              px-4 py-3
+              shadow-[0_10px_28px_rgba(0,0,0,0.20)]
+            "
           >
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[#071B2D]">
               EIBOR Rates Today
@@ -172,35 +191,35 @@ function Hero() {
                 rel="noopener noreferrer"
                 aria-label="Learn more about EIBOR from the Central Bank of the UAE"
                 className="
-        group
-        relative
-        mt-0.5
-        inline-flex
-        items-center
-        gap-1
-        text-[10px]
-        font-medium
-        text-[#B08A3E]
-        transition-colors
-        hover:text-[#8E6D2F]
-      "
+                  group
+                  relative
+                  mt-0.5
+                  inline-flex
+                  items-center
+                  gap-1
+                  text-[10px]
+                  font-medium
+                  text-[#B08A3E]
+                  transition-colors
+                  hover:text-[#8E6D2F]
+                "
               >
                 <span className="relative">
                   <Info className="size-3" aria-hidden="true" />
 
                   <span
                     className="
-            pointer-events-none
-            absolute bottom-full left-1/2 mb-2
-            hidden -translate-x-1/2
-            whitespace-nowrap
-            rounded-md
-            bg-[#071B2D]
-            px-2 py-1
-            text-[9px] font-medium text-white
-            shadow-lg
-            group-hover:block
-          "
+                      pointer-events-none
+                      absolute bottom-full left-1/2 mb-2
+                      hidden -translate-x-1/2
+                      whitespace-nowrap
+                      rounded-md
+                      bg-[#071B2D]
+                      px-2 py-1
+                      text-[9px] font-medium text-white
+                      shadow-lg
+                      group-hover:block
+                    "
                   >
                     Click here to learn more
                   </span>
