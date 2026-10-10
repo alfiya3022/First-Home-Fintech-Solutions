@@ -223,3 +223,59 @@ The following local workflows have been manually verified:
 ## Next Task
 
 Production security and hardening review before Docker/deployment.
+
+## Docker and Nginx Deployment — Completed Locally
+
+**Status:** Local verification completed
+**Date:** 9 October 2026
+
+### Implemented
+
+- Added Dockerfiles for the FastAPI backend and React frontend.
+- Added Docker Compose configuration for PostgreSQL, backend, frontend, and Nginx.
+- Configured PostgreSQL persistence using a named Docker volume.
+- Kept the database and application containers on an internal Docker network; only Nginx publishes a host port.
+- Configured Nginx to route website requests to the frontend and `/api/` requests to FastAPI.
+- Added initial request-rate limits for contact submissions and login.
+- Added initial HTTP security headers and request-body size limits.
+- Configured environment variables through the local `.env.docker` file.
+
+### Verified
+
+- Docker Compose configuration validates successfully.
+- PostgreSQL migrations run successfully inside the containerized environment.
+- Website responds through Nginx with HTTP 200.
+- Protected admin endpoint returns HTTP 401 when unauthenticated.
+- Invalid contact payload is rejected by FastAPI validation.
+- Valid contact submission returns HTTP 201 and saves a lead in PostgreSQL.
+- Microsoft Graph email notification was received in the First Home Outlook inbox.
+
+### Remaining
+
+- Configure and verify production HTTPS.
+- Review production security settings and container readiness.
+- Set up GitHub Actions for automated testing and builds.
+- Deploy to the Hostinger VPS.
+- Configure DNS and perform production smoke tests.
+
+**Important:** Local HTTP verification is complete. Production deployment and HTTPS are not yet verified.
+
+## Phase 1 Verification Run � 2026-10-10 23:47:55
+
+Verification report: `verification-reports/phase1-20261010-234755.txt`
+
+- Backend tests : PASS � pytest exit code 0
+- Frontend build : PASS
+- Compose configuration : PASS
+- CORS/Nginx inspection : REVIEW � Matches found; compare against production requirements
+- Docker service state : INSPECTED
+- Health http://localhost/health : PASS � HTTP 200
+- Health http://localhost/api/health : PASS � HTTP 200
+- Restart/logging inspection : REVIEW � Configuration inspected; restart behaviour not actively tested
+- Git whitespace check : FAIL
+- Git status/diff : INSPECTED � Review modified and untracked files before committing
+- GitHub Actions : NOT VERIFIED � GitHub CLI not installed; check Actions tab on GitHub
+- Full business workflow : NOT YET VERIFIED � Route presence is not proof of end-to-end lead, case, SharePoint upload/download, and Excel export success
+
+
+Note: Route inventory does not establish end-to-end workflow success. Production database migration, production CORS, production HTTPS, and live SharePoint/email behaviour must be verified in the deployment environment. Restart behaviour was inspected, not actively tested. GitHub Actions is complete only after a successful relevant workflow run is confirmed.

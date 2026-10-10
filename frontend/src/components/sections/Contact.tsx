@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from "react";
+
 import { ArrowRight } from "lucide-react";
+import PhoneInput from "react-phone-number-input";
+import "react-phone-number-input/style.css";
+
 import contactImage from "@/assets/images/contact-image.jpg";
+
 import { submitContactEnquiry } from "@/services/api";
 
 const serviceOptions = [
@@ -25,6 +30,7 @@ interface ContactFormData {
   phone: string;
   service: string;
   message: string;
+  website: string;
 }
 
 const initialFormData: ContactFormData = {
@@ -33,10 +39,12 @@ const initialFormData: ContactFormData = {
   phone: "",
   service: "",
   message: "",
+  website: "",
 };
 
 function Contact() {
   const [formData, setFormData] = useState<ContactFormData>(initialFormData);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
@@ -57,6 +65,12 @@ function Contact() {
     event.preventDefault();
 
     if (isSubmitting) {
+      return;
+    }
+
+    if (formData.message.trim().length < 10) {
+      setStatusMessage("Please enter at least 10 characters in your message.");
+      setIsSuccess(false);
       return;
     }
 
@@ -125,6 +139,24 @@ function Contact() {
             </div>
 
             <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+              <div
+                aria-hidden="true"
+                className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden"
+              >
+                <label htmlFor="contact-website">Leave this field empty</label>
+
+                <input
+                  id="contact-website"
+                  name="website"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={formData.website}
+                  onChange={(event) =>
+                    handleChange("website", event.target.value)
+                  }
+                />
+              </div>
               <div className="grid gap-5 sm:grid-cols-2">
                 <div>
                   <label
@@ -182,18 +214,39 @@ function Contact() {
                     Phone
                   </label>
 
-                  <input
+                  <PhoneInput
                     id="contact-phone"
-                    name="phone"
-                    type="tel"
-                    autoComplete="tel"
-                    required
+                    international
+                    defaultCountry="AE"
+                    countryCallingCodeEditable={false}
                     value={formData.phone}
-                    onChange={(event) =>
-                      handleChange("phone", event.target.value)
-                    }
-                    className="h-12 w-full rounded-xl border border-[#E4E0D8] bg-[#FBFAF7] px-4 text-sm text-[#071B2D] outline-none transition placeholder:text-[#9AA1A8] focus:border-[#B99657] focus:ring-2 focus:ring-[#D6BE8A]/30"
-                    placeholder="+971 50 123 4567"
+                    onChange={(value) => handleChange("phone", value ?? "")}
+                    className="
+    flex h-12 w-full items-center
+    rounded-xl border border-[#E4E0D8]
+    bg-[#FBFAF7]
+    px-3
+    text-sm text-[#071B2D]
+    outline-none
+    transition
+    focus-within:border-[#B99657]
+    focus-within:ring-2
+    focus-within:ring-[#D6BE8A]/30
+    [&_.PhoneInputCountry]:mr-2
+    [&_.PhoneInputCountry]:flex
+    [&_.PhoneInputCountry]:items-center
+    [&_.PhoneInputCountry]:border-0
+    [&_.PhoneInputInput]:h-full
+    [&_.PhoneInputInput]:min-w-0
+    [&_.PhoneInputInput]:flex-1
+    [&_.PhoneInputInput]:border-0
+    [&_.PhoneInputInput]:bg-transparent
+    [&_.PhoneInputInput]:px-1
+    [&_.PhoneInputInput]:text-sm
+    [&_.PhoneInputInput]:text-[#071B2D]
+    [&_.PhoneInputInput]:outline-none
+    [&_.PhoneInputInput]:placeholder:text-[#9AA1A8]
+  "
                   />
                 </div>
 
@@ -240,6 +293,8 @@ function Contact() {
                   id="contact-message"
                   name="message"
                   required
+                  minLength={10}
+                  maxLength={2000}
                   rows={5}
                   value={formData.message}
                   onChange={(event) =>

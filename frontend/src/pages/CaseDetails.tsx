@@ -5,10 +5,12 @@ import {
   BriefcaseBusiness,
   CalendarDays,
   Check,
+  Download,
   FileCheck2,
   FileText,
   Home,
   Loader2,
+  Upload,
   User,
   X,
 } from "lucide-react";
@@ -23,8 +25,11 @@ import {
   updateCaseDocumentStatus,
   updateCaseNotes,
   updateCaseStatus,
+  uploadCaseDocumentFile,
+  downloadCaseDocumentFile,
   type Case,
   type CaseDocument,
+  type CaseDocumentFile,
   type CaseDocumentStatus,
   type CaseStatus,
 } from "@/services/api";
@@ -57,49 +62,40 @@ interface DocumentConfirmation {
 
 function CaseDetails({ caseId }: CaseDetailsProps) {
   const [user, setUser] = useState<CurrentUser | null>(null);
-
   const [caseData, setCaseData] = useState<Case | null>(null);
-
   const [selectedStatus, setSelectedStatus] = useState<CaseStatus>("OPEN");
-
   const [isEditingStatus, setIsEditingStatus] = useState(false);
-
   const [documents, setDocuments] = useState<CaseDocument[]>([]);
-
   const [isLoading, setIsLoading] = useState(true);
-
   const [isDocumentsLoading, setIsDocumentsLoading] = useState(false);
-
   const [isSaving, setIsSaving] = useState(false);
-
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-
   const [error, setError] = useState("");
-
   const [successMessage, setSuccessMessage] = useState("");
 
   // Notes
   const [isEditingNotes, setIsEditingNotes] = useState(false);
-
   const [notesDraft, setNotesDraft] = useState("");
-
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   // Documents
   const [documentConfirmation, setDocumentConfirmation] =
     useState<DocumentConfirmation | null>(null);
-
   const [isUpdatingDocument, setIsUpdatingDocument] = useState(false);
+  const [uploadingDocumentId, setUploadingDocumentId] = useState<number | null>(
+    null,
+  );
+  const [downloadingFileId, setDownloadingFileId] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
     async function loadCaseDetails() {
       try {
         const currentUser = await getCurrentUser();
-
         setUser(currentUser);
 
         const caseResponse = await getCase(caseId);
-
         setCaseData(caseResponse);
         setSelectedStatus(caseResponse.status);
         setNotesDraft(caseResponse.notes ?? "");
@@ -130,7 +126,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
     try {
       const caseDocuments = await getCaseDocuments(id);
-
       setDocuments(caseDocuments);
     } catch (error) {
       if (
@@ -152,9 +147,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   }
 
   function handleEditStatus() {
-    if (!caseData) {
-      return;
-    }
+    if (!caseData) return;
 
     setError("");
     setSuccessMessage("");
@@ -163,9 +156,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   }
 
   function handleCancelStatusEdit() {
-    if (!caseData) {
-      return;
-    }
+    if (!caseData) return;
 
     setSelectedStatus(caseData.status);
     setIsEditingStatus(false);
@@ -173,9 +164,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   }
 
   async function handleStatusUpdate() {
-    if (!caseData || selectedStatus === caseData.status) {
-      return;
-    }
+    if (!caseData || selectedStatus === caseData.status) return;
 
     setError("");
     setSuccessMessage("");
@@ -187,7 +176,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
       setCaseData(updatedCase);
       setSelectedStatus(updatedCase.status);
       setIsEditingStatus(false);
-
       setSuccessMessage("Case status updated successfully.");
     } catch (error) {
       if (
@@ -209,9 +197,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   }
 
   function handleEditNotes() {
-    if (!caseData) {
-      return;
-    }
+    if (!caseData) return;
 
     setError("");
     setSuccessMessage("");
@@ -220,9 +206,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   }
 
   function handleCancelNotesEdit() {
-    if (!caseData) {
-      return;
-    }
+    if (!caseData) return;
 
     setNotesDraft(caseData.notes ?? "");
     setIsEditingNotes(false);
@@ -230,9 +214,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   }
 
   async function handleSaveNotes() {
-    if (!caseData) {
-      return;
-    }
+    if (!caseData) return;
 
     setError("");
     setSuccessMessage("");
@@ -244,7 +226,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
       setCaseData(updatedCase);
       setNotesDraft(updatedCase.notes ?? "");
       setIsEditingNotes(false);
-
       setSuccessMessage("Case notes updated successfully.");
     } catch (error) {
       if (
@@ -269,25 +250,16 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   ) {
     setError("");
     setSuccessMessage("");
-
-    setDocumentConfirmation({
-      document,
-      nextStatus,
-    });
+    setDocumentConfirmation({ document, nextStatus });
   }
 
   function closeDocumentConfirmation() {
-    if (isUpdatingDocument) {
-      return;
-    }
-
+    if (isUpdatingDocument) return;
     setDocumentConfirmation(null);
   }
 
   async function confirmDocumentStatusChange() {
-    if (!documentConfirmation) {
-      return;
-    }
+    if (!documentConfirmation) return;
 
     setError("");
     setSuccessMessage("");
@@ -336,12 +308,83 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
     }
   }
 
+  async function handleDocumentUpload(
+    document: CaseDocument,
+    file: File | undefined,
+  ) {
+    if (!file) return;
+
+    setError("");
+    setSuccessMessage("");
+    setUploadingDocumentId(document.id);
+
+    try {
+      const updatedDocument = await uploadCaseDocumentFile(
+        caseId,
+        document.id,
+        file,
+      );
+
+      setDocuments((current) =>
+        current.map((item) =>
+          item.id === updatedDocument.id ? updatedDocument : item,
+        ),
+      );
+
+      setSuccessMessage(`${file.name} uploaded successfully.`);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Authentication required."
+      ) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setError(
+        error instanceof Error ? error.message : "Unable to upload document.",
+      );
+    } finally {
+      setUploadingDocumentId(null);
+    }
+  }
+
+  async function handleDocumentDownload(
+    document: CaseDocument,
+    file: CaseDocumentFile,
+  ) {
+    setError("");
+    setDownloadingFileId(file.id);
+
+    try {
+      await downloadCaseDocumentFile(
+        caseId,
+        document.id,
+        file.id,
+        file.original_filename,
+      );
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Authentication required."
+      ) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setError(
+        error instanceof Error ? error.message : "Unable to download document.",
+      );
+    } finally {
+      setDownloadingFileId(null);
+    }
+  }
+
   async function handleLogout() {
     setIsLoggingOut(true);
 
     try {
       await logout();
-
       window.location.href = "/login";
     } catch {
       setIsLoggingOut(false);
@@ -364,11 +407,9 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
       <main className="flex min-h-screen items-center justify-center bg-background px-6">
         <div className="text-center">
           <h1 className="text-xl font-semibold">Case unavailable</h1>
-
           <p className="mt-2 text-sm text-muted-foreground">
             {error || "The requested case could not be found."}
           </p>
-
           <a
             href="/dashboard/cases"
             className="mt-5 inline-flex items-center gap-2 text-sm font-medium hover:underline"
@@ -394,7 +435,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
           <div className="flex min-h-20 items-center justify-between gap-4 px-6 sm:px-8">
             <div>
               <p className="text-sm text-muted-foreground">Consultant Portal</p>
-
               <h1 className="text-xl font-semibold tracking-tight">
                 Case Details
               </h1>
@@ -412,7 +452,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
         {/* Content */}
         <div className="space-y-6 px-6 py-8 sm:px-8">
-          {/* Error */}
           {error && (
             <div
               role="alert"
@@ -422,14 +461,12 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
             </div>
           )}
 
-          {/* Success */}
           {successMessage && (
             <div
               role="status"
               className="flex items-center gap-2 rounded-xl border border-green-500/20 bg-green-500/10 px-4 py-3 text-sm text-green-700 dark:text-green-300"
             >
               <Check className="size-4" aria-hidden="true" />
-
               {successMessage}
             </div>
           )}
@@ -449,7 +486,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
                   <h2 className="text-2xl font-semibold tracking-tight">
                     {caseData.case_reference}
                   </h2>
-
                   <p className="mt-1 text-sm text-muted-foreground">
                     Case #{caseData.id} · Lead #{caseData.lead_id}
                   </p>
@@ -465,7 +501,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="font-semibold">Case Status</h2>
-
                 <p className="mt-1 text-sm text-muted-foreground">
                   Update the current stage of this financing case.
                 </p>
@@ -544,7 +579,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
               <div>
                 <h2 className="font-semibold">Property & Financing</h2>
-
                 <p className="mt-1 text-sm text-muted-foreground">
                   Financing information associated with this case.
                 </p>
@@ -590,7 +624,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
                 <div>
                   <h2 className="font-semibold">Case Notes</h2>
-
                   <p className="mt-1 text-sm text-muted-foreground">
                     Internal notes associated with this case.
                   </p>
@@ -669,9 +702,8 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
                 <div>
                   <h2 className="font-semibold">Documents</h2>
-
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Track the documents received for this case.
+                    Upload and track documents received for this case.
                   </p>
                 </div>
               </div>
@@ -701,48 +733,122 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
                 {documents.map((document) => (
                   <div
                     key={document.id}
-                    className="flex flex-col gap-4 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-4 px-4 py-4"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {document.document_type}
-                      </p>
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {document.document_type}
+                        </p>
 
-                      {document.status === "RECEIVED" &&
-                      document.received_at ? (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Received {formatDate(document.received_at)}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Awaiting document
-                        </p>
-                      )}
+                        {document.status === "RECEIVED" &&
+                        document.received_at ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Received {formatDate(document.received_at)}
+                          </p>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Awaiting document
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <DocumentStatusBadge status={document.status} />
+
+                        {document.status === "PENDING" ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDocumentStatusChange(document, "RECEIVED")
+                            }
+                            className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted"
+                          >
+                            Mark as Received
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDocumentStatusChange(document, "PENDING")
+                            }
+                            className="text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline"
+                          >
+                            Undo
+                          </button>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <DocumentStatusBadge status={document.status} />
+                    {/* Upload and download controls */}
+                    <div className="space-y-3">
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">
+                        {uploadingDocumentId === document.id ? (
+                          <Loader2 className="size-4 animate-spin" />
+                        ) : (
+                          <Upload className="size-4" aria-hidden="true" />
+                        )}
 
-                      {document.status === "PENDING" ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDocumentStatusChange(document, "RECEIVED")
-                          }
-                          className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-medium transition hover:bg-muted"
-                        >
-                          Mark as Received
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDocumentStatusChange(document, "PENDING")
-                          }
-                          className="text-xs font-medium text-muted-foreground underline-offset-4 transition hover:text-foreground hover:underline"
-                        >
-                          Undo
-                        </button>
+                        {uploadingDocumentId === document.id
+                          ? "Uploading..."
+                          : "Upload file"}
+
+                        <input
+                          type="file"
+                          className="sr-only"
+                          accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                          disabled={uploadingDocumentId !== null}
+                          onChange={(event) => {
+                            const input = event.currentTarget;
+                            const selectedFile = input.files?.[0];
+
+                            void handleDocumentUpload(document, selectedFile);
+
+                            input.value = "";
+                          }}
+                        />
+                      </label>
+
+                      {document.files?.length > 0 && (
+                        <div className="space-y-2">
+                          {document.files.map((file) => (
+                            <div
+                              key={file.id}
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                            >
+                              <div className="min-w-0">
+                                <p className="break-all text-sm font-medium">
+                                  {file.original_filename}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {(file.size_bytes / 1024).toFixed(1)} KB
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                disabled={downloadingFileId !== null}
+                                onClick={() =>
+                                  void handleDocumentDownload(document, file)
+                                }
+                                className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted disabled:opacity-50"
+                              >
+                                {downloadingFileId === file.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                  />
+                                )}
+
+                                {downloadingFileId === file.id
+                                  ? "Downloading..."
+                                  : "Download"}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -778,7 +884,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
               <div>
                 <h2 className="font-semibold">Related Lead</h2>
-
                 <p className="mt-1 text-sm text-muted-foreground">
                   This case was created from Lead #{caseData.lead_id}.
                 </p>
@@ -864,19 +969,12 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 function CaseStatusBadge({ status }: { status: CaseStatus }) {
   const styles: Record<CaseStatus, string> = {
     OPEN: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-
     DOCUMENTS_PENDING: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
-
     DOCUMENTS_RECEIVED: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-
     UNDER_REVIEW: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-
     SUBMITTED: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-
     APPROVED: "bg-green-500/10 text-green-700 dark:text-green-300",
-
     COMPLETED: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-
     CANCELLED: "bg-muted text-muted-foreground",
   };
 

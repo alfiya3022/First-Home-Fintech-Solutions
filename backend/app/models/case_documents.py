@@ -1,8 +1,9 @@
+
 from datetime import datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
 
@@ -56,3 +57,13 @@ class CaseDocument(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    files: Mapped[list["CaseDocumentFile"]] = relationship(
+        "CaseDocumentFile",
+        back_populates="document",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+from app.models.case_document_files import CaseDocumentFile  # noqa: E402,F401

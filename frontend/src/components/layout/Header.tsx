@@ -1,3 +1,4 @@
+import { useState } from "react";
 import logo from "@/assets/logo/first-home-logo-white.png";
 
 const navigationLinks = [
@@ -28,6 +29,8 @@ const navigationLinks = [
 ];
 
 function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   return (
     <header
       className="
@@ -81,7 +84,12 @@ function Header() {
         {/* Mobile Menu Button */}
         <button
           type="button"
-          aria-label="Open navigation menu"
+          aria-label={
+            isMenuOpen ? "Close navigation menu" : "Open navigation menu"
+          }
+          aria-expanded={isMenuOpen}
+          aria-controls="mobile-navigation"
+          onClick={() => setIsMenuOpen((open) => !open)}
           className="
             ml-auto
             flex size-10 items-center justify-center
@@ -94,7 +102,9 @@ function Header() {
             lg:hidden
           "
         >
-          <span className="sr-only">Open menu</span>
+          <span className="sr-only">
+            {isMenuOpen ? "Close menu" : "Open menu"}
+          </span>
 
           <svg
             viewBox="0 0 24 24"
@@ -102,12 +112,53 @@ function Header() {
             className="size-5 fill-none stroke-current"
             strokeWidth="1.8"
           >
-            <path d="M4 7h16" />
-            <path d="M4 12h16" />
-            <path d="M4 17h16" />
+            {isMenuOpen ? (
+              <path d="M6 6l12 12M18 6L6 18" />
+            ) : (
+              <>
+                <path d="M4 7h16" />
+                <path d="M4 12h16" />
+                <path d="M4 17h16" />
+              </>
+            )}
           </svg>
         </button>
       </div>
+
+      {/* Mobile Navigation */}
+      {isMenuOpen && (
+        <nav
+          id="mobile-navigation"
+          aria-label="Mobile navigation"
+          className="
+            absolute inset-x-0 top-full
+            border-t border-white/10
+            bg-[#071B2D]/95
+            px-6 py-4
+            shadow-xl backdrop-blur-md
+            lg:hidden
+          "
+        >
+          <div className="mx-auto flex max-w-7xl flex-col">
+            {navigationLinks.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={() => setIsMenuOpen(false)}
+                className="
+                  rounded-lg px-3 py-3
+                  text-base font-medium text-white/90
+                  transition-colors
+                  hover:bg-white/5
+                  hover:text-[#D9BC7A]
+                "
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

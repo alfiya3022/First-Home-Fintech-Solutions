@@ -1,88 +1,115 @@
-from io import BytesIO
+import os
 
-from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill
-from openpyxl.utils import get_column_letter
+from dotenv import load_dotenv
+import msal
+import requests
 
-from app.models.leads import Lead
+load_dotenv()
 
 
-def generate_leads_excel(leads: list[Lead]) -> BytesIO:
-    workbook = Workbook()
-    worksheet = workbook.active
-    worksheet.title = "Leads"
+GRAPH_SCOPE = ["https://graph.microsoft.com/.default"]
+GRAPH_SEND_MAIL_URL = "https://graph.microsoft.com/v1.0/users/{sender}/sendMail"
 
-    headers = [
-        "Name",
-        "Email",
-        "Contact Number",
-        "Purpose of Contact",
-        "Status",
-        "Created Date",
-    ]
 
-    worksheet.append(headers)
+def send_lead_notification(
+    lead_name: str,
+    lead_email: str,
+    lead_phone: str,
+    lead_service: str,
+    lead_message: str,
+) -> None:
+    tenant_id = os.getenv("GRAPH_TENANT_ID")
+    client_id = os.getenv("GRAPH_CLIENT_ID")
+    client_secret = os.getenv("GRAPH_CLIENT_SECRET")
+    sender_email = os.getenv("GRAPH_SENDER_EMAIL")
+    recipient_email = os.getenv("GRAPH_RECIPIENT_EMAIL")
 
-    # Header styling
-    header_fill = PatternFill(
-        fill_type="solid",
-        fgColor="071B2D",
-    )
-
-    header_font = Font(
-        color="FFFFFF",
-        bold=True,
-    )
-
-    for cell in worksheet[1]:
-        cell.fill = header_fill
-        cell.font = header_font
-
-    # Lead data
-    for lead in leads:
-        worksheet.append(
-            [
-                lead.name,
-                lead.email,
-                lead.phone,
-                lead.service,
-                lead.status.value,
-                lead.created_at,
-            ]
-        )
-
-    # Date formatting
-    for row in worksheet.iter_rows(
-        min_row=2,
-        min_col=6,
-        max_col=6,
-    ):
-        row[0].number_format = "DD-MMM-YYYY HH:MM"
-
-    # Column widths
-    column_widths = {
-        1: 24,
-        2: 32,
-        3: 20,
-        4: 38,
-        5: 16,
-        6: 24,
+    required_values = {
+        "GRAPH_TENANT_ID": tenant_id,
+        "GRAPH_CLIENT_ID": client_id,
+        "GRAPH_CLIENT_SECRET": client_secret,
+        "GRAPH_SENDER_EMAIL": sender_email,
+        "GRAPH_RECIPIENT_EMAIL": recipient_email,
     }
 
-    for column_index, width in column_widths.items():
-        worksheet.column_dimensions[
-            get_column_letter(column_index)
-        ].width = width
+    missing_values = [
+        name for name, value in required_values.items() if not value
+    ]
 
-    # Freeze header row
-    worksheet.freeze_panes = "A2"
+    if missing_values:
+        raise RuntimeError(
+            f"Missing Microsoft Graph configuration: {', '.join(missing_values)}"
+        )
 
-    # Enable filtering
-    worksheet.auto_filter.ref = worksheet.dimensions
+    authority = f"https://login.microsoftonline.com/{tenant_id}"
 
-    output = BytesIO()
+    app = msal.ConfidentialClientApplication(
+        client_id=client_id,
+        authority=authority,
+        client_credential=client_secret,
+    )
 
-    workbook.save(output)
-    output.seek(0)
+    token_result = app.acquire_token_for_client(
+        scopes=GRAPH_SCOPE
+    )
 
-    return output
+    access_token = token_result.get("access_token")
+
+    if not access_token:
+        error_description = token_result.get(
+            "error_description",
+            "Unable to acquire Microsoft Graph access token.",
+        )
+
+        raise RuntimeError(error_description)
+
+    email_body = f"""
+Name: {lead_name}
+Email: {lead_email}
+Contact Number: {lead_phone}
+Purpose of Contact: {lead_service}
+
+Message:
+{lead_message}
+""".strip()
+
+    payload = {
+        "message": {
+            "subject": f"New First Home Enquiry — {lead_name}",
+            "body": {
+                "contentType": "Text",
+                "content": email_body,
+            },
+            "toRecipients": [
+                {
+                    "emailAddress": {
+                        "address": recipient_email,
+                    }
+                }
+            ],
+            "replyTo": [
+                {
+                    "emailAddress": {
+                        "address": lead_email,
+                    }
+                }
+            ],
+        },
+        "saveToSentItems": True,
+    }
+
+    response = requests.post(
+        GRAPH_SEND_MAIL_URL.format(sender=sender_email),
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=15,
+    )
+
+    if response.status_code != 202:
+        raise RuntimeError(
+            f"Microsoft Graph email failed: "
+            f"{response.status_code} {response.text}"
+        )

@@ -1,3 +1,4 @@
+
 from pydantic import BaseModel, EmailStr, Field
 
 
@@ -14,6 +15,7 @@ SERVICE_OPTIONS = [
     "Property Investors",
     "Self-Employed Mortgage Solutions",
     "Islamic / Sharia-Compliant Financing",
+    "Other",
 ]
 
 
@@ -39,8 +41,13 @@ class ContactRequest(BaseModel):
         min_length=10,
         max_length=2000,
     )
-    
-    
+
+    website: str = Field(
+        default="",
+        max_length=200,
+    )
+
+
 class ContactResponse(BaseModel):
     success: bool
     message: str

@@ -10,6 +10,7 @@ export interface ContactRequest {
   phone: string;
   service: string;
   message: string;
+  website: string;
 }
 
 export interface ContactResponse {
@@ -383,6 +384,15 @@ export async function updateCaseStatus(
 
 export type CaseDocumentStatus = "PENDING" | "RECEIVED";
 
+export interface CaseDocumentFile {
+  id: number;
+  case_document_id: number;
+  original_filename: string;
+  content_type: string;
+  size_bytes: number;
+  uploaded_at: string;
+}
+
 export interface CaseDocument {
   id: number;
   case_id: number;
@@ -391,6 +401,7 @@ export interface CaseDocument {
   received_at: string | null;
   created_at: string;
   updated_at: string;
+  files: CaseDocumentFile[];
 }
 
 interface CaseDocumentListResponse {
@@ -468,6 +479,97 @@ export async function updateCaseDocumentStatus(
 
   return (await response.json()) as CaseDocument;
 }
+
+export async function uploadCaseDocumentFile(
+  caseId: number,
+  documentId: number,
+  file: File,
+): Promise<CaseDocument> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    `${API_BASE_URL}/api/admin/cases/${caseId}/documents/${documentId}/files`,
+    {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Authentication required.");
+    }
+
+    let message = "Unable to upload document.";
+
+    try {
+      const data = await response.json();
+
+      if (typeof data?.detail === "string") {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+
+  return (await response.json()) as CaseDocument;
+}
+
+export async function downloadCaseDocumentFile(
+  caseId: number,
+  documentId: number,
+  fileId: number,
+  filename: string,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/admin/cases/${caseId}/documents/${documentId}/files/${fileId}/download`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  if (response.status === 401) {
+    throw new Error("Authentication required.");
+  }
+
+  if (!response.ok) {
+    let message = "Unable to download document.";
+
+    try {
+      const data = await response.json();
+
+      if (typeof data?.detail === "string") {
+        message = data.detail;
+      }
+    } catch {
+      // Keep the default error message.
+    }
+
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(objectUrl);
+}
+
+// ============================================================
+// Case Notes
+// ============================================================
 
 export async function updateCaseNotes(
   caseId: number,

@@ -14,13 +14,16 @@ TEST_EMAIL = "test-auth@example.com"
 TEST_PASSWORD = "TestPassword123!"
 
 
-def create_test_user():
+def create_test_user(is_admin=False):
     with SessionLocal() as db:
         existing_user = db.scalar(
             select(User).where(User.email == TEST_EMAIL)
         )
 
         if existing_user:
+            existing_user.is_admin = is_admin
+            existing_user.is_active = True
+            db.commit()
             return
 
         user = User(
@@ -28,10 +31,13 @@ def create_test_user():
             password_hash=hash_password(TEST_PASSWORD),
             full_name="Authentication Test User",
             is_active=True,
+            is_admin=is_admin,
         )
 
         db.add(user)
         db.commit()
+
+
 
 
 def delete_test_user():
@@ -80,6 +86,55 @@ def test_submit_contact_enquiry():
         assert lead.email == "automated@example.com"
         assert lead.service == "Home Financing"
         assert lead.status.value == "NEW"
+
+
+def test_submit_contact_enquiry_sends_email(monkeypatch):
+    email_calls = []
+
+    def mock_send_lead_notification(
+        lead_name,
+        lead_email,
+        lead_phone,
+        lead_service,
+        lead_message,
+    ):
+        email_calls.append(
+            {
+                "lead_name": lead_name,
+                "lead_email": lead_email,
+                "lead_phone": lead_phone,
+                "lead_service": lead_service,
+                "lead_message": lead_message,
+            }
+        )
+
+    monkeypatch.setattr(
+        "app.api.contact.send_lead_notification",
+        mock_send_lead_notification,
+    )
+
+    response = client.post(
+        "/api/contact",
+        json={
+            "name": "Email Test User",
+            "email": "emailtest@example.com",
+            "phone": "0501234567",
+            "service": "Home Financing",
+            "message": "Testing the email notification integration.",
+        },
+    )
+
+    assert response.status_code == 201
+
+    assert len(email_calls) == 1
+
+    assert email_calls[0] == {
+        "lead_name": "Email Test User",
+        "lead_email": "emailtest@example.com",
+        "lead_phone": "0501234567",
+        "lead_service": "Home Financing",
+        "lead_message": "Testing the email notification integration.",
+    }
 
 
 def test_submit_contact_enquiry_invalid_service():
@@ -204,7 +259,7 @@ def test_admin_leads_requires_authentication():
 
 
 def test_authenticated_admin_leads():
-    create_test_user()
+    create_test_user(is_admin=True)
 
     authenticated_client = TestClient(app)
 
@@ -267,3 +322,24 @@ def test_logout_invalidates_session():
     assert me_response.status_code == 401
 
     delete_test_user()
+
+
+
+def test_regular_user_forbidden_from_admin_leads():
+    create_test_user(is_admin=False)
+
+    regular_client = TestClient(app)
+
+    login_response = regular_client.post(
+        "/api/auth/login",
+        json={
+            "email": TEST_EMAIL,
+            "password": TEST_PASSWORD,
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    response = regular_client.get("/api/admin/leads")
+
+    assert response.status_code == 403

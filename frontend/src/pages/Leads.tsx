@@ -457,8 +457,6 @@ function StatusBadge({ status }: { status: Lead["status"] }) {
 
     CONTACTED: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
 
-    MEETING: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-
     CONVERTED: "bg-green-500/10 text-green-700 dark:text-green-300",
 
     CLOSED: "bg-muted text-muted-foreground",

@@ -3,48 +3,36 @@ import { ArrowRight, Calculator, Info } from "lucide-react";
 
 import heroImageA from "@/assets/images/hero/a.jpg";
 import heroImageB from "@/assets/images/hero/b.jpg";
-import heroImageC from "@/assets/images/hero/c.jpg";
-import heroImageD from "@/assets/images/hero/d.jpg";
 import heroImageE from "@/assets/images/hero/e.png";
 import heroImageF from "@/assets/images/hero/f.png";
 import heroImageG from "@/assets/images/hero/g.jpg";
 import heroImageH from "@/assets/images/hero/h.jpg";
-import heroImageI from "@/assets/images/hero/i.png";
-import heroImageJ from "@/assets/images/hero/j.jpg";
 import heroImageK from "@/assets/images/hero/k.jpg";
 import heroImageL from "@/assets/images/hero/l.jpg";
 import heroImageM from "@/assets/images/hero/m.jpg";
-import heroImageN from "@/assets/images/hero/n.jpg";
 import heroImageO from "@/assets/images/hero/o.jpg";
 import heroImageP from "@/assets/images/hero/p.jpg";
 import heroImageQ from "@/assets/images/hero/q.jpg";
 import heroImageR from "@/assets/images/hero/r.jpg";
 import heroImageS from "@/assets/images/hero/s.jpg";
 import heroImageT from "@/assets/images/hero/t.jpg";
-import heroImageU from "@/assets/images/hero/u.jpg";
 
 const heroImages = [
   heroImageA,
   heroImageB,
-  heroImageC,
-  heroImageD,
   heroImageE,
   heroImageF,
   heroImageG,
   heroImageH,
-  heroImageI,
-  heroImageJ,
   heroImageK,
   heroImageL,
   heroImageM,
-  heroImageN,
   heroImageO,
   heroImageP,
   heroImageQ,
   heroImageR,
   heroImageS,
   heroImageT,
-  heroImageU,
 ];
 
 function Hero() {

@@ -1,3 +1,6 @@
+
+import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -15,14 +18,38 @@ from app.api.public_map import router as public_map_router
 app = FastAPI(title="First Home Fintech Solutions API")
 
 
+
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").strip().lower()
+
+if ENVIRONMENT == "production":
+    ALLOWED_ORIGINS = [
+        "https://firsthomefintech.ae",
+        "https://www.firsthomefintech.ae",
+    ]
+else:
+    ALLOWED_ORIGINS = [
+        "http://localhost:5173",
+    ]
+
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=[
+        "GET",
+        "POST",
+        "PATCH",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+    ],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With",
+    ],
 )
 
 

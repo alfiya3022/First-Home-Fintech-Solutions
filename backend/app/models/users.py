@@ -1,3 +1,4 @@
+
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String
@@ -34,6 +35,12 @@ class User(Base):
         Boolean,
         nullable=False,
         default=True,
+    )
+
+    is_admin: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(

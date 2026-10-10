@@ -12,6 +12,9 @@ from app.models.leads import Lead
 from app.models.users import User
 from app.models.sessions import Session
 from app.models.cases import Case
+from app.models.case_documents import CaseDocument
+from app.models.case_document_files import CaseDocumentFile
+
 
 
 load_dotenv()

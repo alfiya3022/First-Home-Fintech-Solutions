@@ -1,7 +1,15 @@
+
 # Environment variables and secrets
 .env
 .env.*
 !.env.example
+
+# Backup secrets and artifacts
+secrets/
+*.dump
+*.dump.gpg
+*.dump.partial
+*.dump.tmp
 
 # Node
 node_modules/
@@ -35,3 +43,9 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Local backend archive
+backend.zip
+
+# Local verification reports
+verification-reports/

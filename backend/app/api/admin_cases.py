@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.auth import get_current_user
+from app.core.auth import require_admin
 from app.core.database import get_db
 from app.models.cases import Case, CaseStatus
 from app.models.leads import Lead, LeadStatus
@@ -44,7 +44,7 @@ def generate_case_reference(db: Session) -> str:
 )
 def create_case(
     request: CaseCreateRequest,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     lead = db.get(Lead, request.lead_id)
@@ -108,7 +108,7 @@ def create_case(
     response_model=CaseListResponse,
 )
 def get_cases(
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     rows = db.execute(
@@ -147,7 +147,7 @@ def get_cases(
 )
 def get_case(
     case_id: int,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     case = db.get(Case, case_id)
@@ -168,7 +168,7 @@ def get_case(
 def update_case_status(
     case_id: int,
     request: CaseStatusUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     case = db.get(Case, case_id)
@@ -200,7 +200,7 @@ def update_case_notes(
     case_id: int,
     payload: CaseNotesUpdate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_admin),
 ):
     case = db.get(Case, case_id)
 
