@@ -42,11 +42,11 @@ function Login() {
             </p>
 
             <h1 className="text-3xl font-semibold tracking-tight">
-              Consultant Portal
+              Staff Portal
             </h1>
 
             <p className="mt-2 text-sm text-muted-foreground">
-              Sign in to manage client enquiries and cases.
+              Sign in to access your consultant or administrator workspace.
             </p>
           </div>
 
@@ -131,7 +131,7 @@ function Login() {
           </div>
 
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            Authorized consultant access only.
+            Authorized staff access only.
           </p>
         </div>
       </div>

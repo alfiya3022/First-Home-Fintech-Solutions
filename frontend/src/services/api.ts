@@ -1,5 +1,30 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+export interface EiborRates {
+  one_month: number | null;
+  three_month: number | null;
+  six_month: number | null;
+  status: "fresh" | "stale" | "unavailable";
+  publication_date: string | null;
+  fetched_at: string | null;
+  source_status: "available" | "unavailable" | "not_checked";
+  last_check_at: string | null;
+  stale: boolean;
+}
+
+export async function getEiborRates(): Promise<EiborRates> {
+  const response = await fetch(`${API_BASE_URL}/api/eibor`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Unable to load EIBOR rates.");
+  }
+
+  return (await response.json()) as EiborRates;
+}
+
 // ============================================================
 // Contact
 // ============================================================
@@ -78,6 +103,7 @@ export interface CurrentUser {
   id: number;
   email: string;
   full_name: string;
+  is_admin: boolean;
 }
 
 export async function getCurrentUser(): Promise<CurrentUser> {
@@ -116,24 +142,27 @@ export async function logout(): Promise<LoginResponse> {
 
 export type LeadStatus = "NEW" | "CONTACTED" | "CONVERTED" | "CLOSED";
 
-export interface Lead {
+export interface LeadSummary {
   id: number;
   name: string;
   email: string;
   phone: string;
   service: string;
-  message: string;
   status: LeadStatus;
   created_at: string;
+}
+
+export interface Lead extends LeadSummary {
+  message: string;
   updated_at: string;
 }
 
 interface LeadListResponse {
-  leads: Lead[];
+  leads: LeadSummary[];
 }
 
-export async function getLeads(): Promise<Lead[]> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/leads`, {
+export async function getLeads(): Promise<LeadSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/api/consultant/leads`, {
     method: "GET",
     credentials: "include",
   });
@@ -152,7 +181,7 @@ export async function getLeads(): Promise<Lead[]> {
 }
 
 export async function getLead(leadId: number): Promise<Lead> {
-  const response = await fetch(`${API_BASE_URL}/api/admin/leads/${leadId}`, {
+  const response = await fetch(`${API_BASE_URL}/api/consultant/leads/${leadId}`, {
     method: "GET",
     credentials: "include",
   });
@@ -254,8 +283,30 @@ export interface Case {
   updated_at: string;
 }
 
+export interface CaseDashboardSummary {
+  total_cases: number;
+  cases_by_status: Record<CaseStatus, number>;
+}
+
 interface CaseListResponse {
   cases: Case[];
+}
+
+export async function getCaseSummary(): Promise<CaseDashboardSummary> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/cases/summary`, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Authentication required.");
+    }
+
+    throw new Error("Unable to load the case summary.");
+  }
+
+  return (await response.json()) as CaseDashboardSummary;
 }
 
 export async function getCases(): Promise<Case[]> {
@@ -293,6 +344,30 @@ export async function getCase(caseId: number): Promise<Case> {
     }
 
     throw new Error("Unable to load case.");
+  }
+
+  return (await response.json()) as Case;
+}
+
+export async function getCaseForLead(leadId: number): Promise<Case> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/admin/cases/by-lead/${leadId}`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error("Authentication required.");
+    }
+
+    if (response.status === 404) {
+      throw new Error("Case not found for this lead.");
+    }
+
+    throw new Error("Unable to verify whether a case exists for this lead.");
   }
 
   return (await response.json()) as Case;

@@ -35,6 +35,17 @@ const heroImages = [
   heroImageT,
 ];
 
+// Temporary manually maintained rates.
+// Source: Central Bank of the UAE (CBUAE).
+// Publication date: 13 October 2026.
+// Replace with verified live backend data when the integration is ready.
+const eiborRates = {
+  oneMonth: "4.074230",
+  threeMonths: "4.443480",
+  sixMonths: "4.616510",
+  publicationDate: "13 October 2026",
+};
+
 function Hero() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -127,7 +138,7 @@ function Hero() {
             </a>
           </div>
 
-          {/* EIBOR RATES */}
+          {/* TEMPORARY HARDCODED EIBOR RATES */}
           <div
             className="
               mt-6 w-full max-w-xs
@@ -141,7 +152,7 @@ function Hero() {
             "
           >
             <h2 className="text-xs font-bold uppercase tracking-[0.14em] text-[#071B2D]">
-              EIBOR Rates Today
+              EIBOR Rates
             </h2>
 
             <div className="mt-2.5 space-y-1.5">
@@ -149,39 +160,43 @@ function Hero() {
                 <span className="text-xs font-medium text-[#071B2D]/65">
                   1 Month
                 </span>
-
-                <span className="text-sm font-bold text-[#071B2D]">4.09%</span>
+                <span className="text-sm font-bold text-[#071B2D]">
+                  {eiborRates.oneMonth}%
+                </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-[#071B2D]/65">
                   3 Months
                 </span>
-
-                <span className="text-sm font-bold text-[#071B2D]">4.22%</span>
+                <span className="text-sm font-bold text-[#071B2D]">
+                  {eiborRates.threeMonths}%
+                </span>
               </div>
 
               <div className="flex items-center justify-between">
                 <span className="text-xs font-medium text-[#071B2D]/65">
                   6 Months
                 </span>
-
-                <span className="text-sm font-bold text-[#071B2D]">4.42%</span>
+                <span className="text-sm font-bold text-[#071B2D]">
+                  {eiborRates.sixMonths}%
+                </span>
               </div>
             </div>
 
-            <div className="mt-2.5 border-t border-[#071B2D]/10 pt-2">
-              <p className="text-[9px] text-[#071B2D]/45">Based on CBUAE</p>
+            <p className="mt-2 text-[9px] text-[#071B2D]/55">
+              Published {eiborRates.publicationDate}
+            </p>
 
+            <div className="mt-2.5 border-t border-[#071B2D]/10 pt-2">
               <a
                 href="https://centralbank.ae/en/forex-eibor/eibor-rates/"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Learn more about EIBOR from the Central Bank of the UAE"
+                aria-label="Verify EIBOR rates on the Central Bank of the UAE website"
                 className="
                   group
                   relative
-                  mt-0.5
                   inline-flex
                   items-center
                   gap-1
@@ -209,12 +224,12 @@ function Hero() {
                       group-hover:block
                     "
                   >
-                    Click here to learn more
+                    Check the official source
                   </span>
                 </span>
 
                 <span className="underline underline-offset-2">
-                  Want to know more about EIBOR?
+                  Verify rates with CBUAE
                 </span>
               </a>
             </div>

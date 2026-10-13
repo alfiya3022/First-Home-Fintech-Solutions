@@ -2,17 +2,21 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 load_dotenv()
 
+from database import engine
 from app.api.contact import router as contact_router
 from app.api.auth import router as auth_router
 from app.api.admin_leads import router as admin_leads_router
 from app.api.admin_cases import router as admin_cases_router
 from app.api.admin_case_documents import router as admin_case_documents_router
-from app.api.public_map import router as public_map_router
+from app.api.consultant_leads import router as consultant_leads_router
+from app.api.eibor import router as eibor_router
 
 
 app = FastAPI(title="First Home Fintech Solutions API")
@@ -58,9 +62,24 @@ def health_check():
     return {"status": "ok"}
 
 
+@app.get("/ready")
+def readiness_check():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Database unavailable.",
+        ) from None
+
+    return {"status": "ok"}
+
+
 app.include_router(contact_router)
 app.include_router(auth_router)
 app.include_router(admin_leads_router)
 app.include_router(admin_cases_router)
 app.include_router(admin_case_documents_router)
-app.include_router(public_map_router)
+app.include_router(consultant_leads_router)
+app.include_router(eibor_router)

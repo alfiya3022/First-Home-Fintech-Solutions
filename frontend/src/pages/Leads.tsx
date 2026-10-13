@@ -1,22 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Download, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, Download, Search } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import FilterToolbar from "@/components/dashboard/FilterToolbar";
+import StatusBadge from "@/components/dashboard/StatusBadge";
+import {
+  matchesDateFilter,
+  type DateFilter as DateFilterValue,
+} from "@/lib/dateFilter";
 import {
   exportLeads,
   getCurrentUser,
   getLeads,
   logout,
-  type Lead,
+  type CurrentUser,
+  type LeadSummary,
 } from "@/services/api";
 
-interface CurrentUser {
-  id: number;
-  email: string;
-  full_name: string;
-}
-
-const STATUS_OPTIONS: Array<"ALL" | Lead["status"]> = [
+const STATUS_OPTIONS: Array<"ALL" | LeadSummary["status"]> = [
   "ALL",
   "NEW",
   "CONTACTED",
@@ -26,11 +27,16 @@ const STATUS_OPTIONS: Array<"ALL" | Lead["status"]> = [
 
 function Leads() {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<LeadSummary[]>([]);
 
   const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    kind: "all",
+  });
 
-  const [statusFilter, setStatusFilter] = useState<"ALL" | Lead["status"]>(
+  const [statusFilter, setStatusFilter] = useState<
+    "ALL" | LeadSummary["status"]
+  >(
     "ALL",
   );
 
@@ -151,6 +157,7 @@ function Leads() {
     return leads.filter((lead) => {
       const matchesSearch =
         !normalizedSearch ||
+        String(lead.id).includes(normalizedSearch) ||
         lead.name.toLowerCase().includes(normalizedSearch) ||
         lead.email.toLowerCase().includes(normalizedSearch) ||
         lead.phone.toLowerCase().includes(normalizedSearch);
@@ -160,10 +167,11 @@ function Leads() {
 
       const matchesService =
         serviceFilter === "ALL" || lead.service === serviceFilter;
+      const matchesDate = matchesDateFilter(lead.created_at, dateFilter);
 
-      return matchesSearch && matchesStatus && matchesService;
+      return matchesSearch && matchesStatus && matchesService && matchesDate;
     });
-  }, [leads, search, statusFilter, serviceFilter]);
+  }, [leads, search, statusFilter, serviceFilter, dateFilter]);
 
   // =========================================================
   // Loading state
@@ -193,6 +201,7 @@ function Leads() {
     <DashboardLayout
       fullName={user.full_name}
       email={user.email}
+      isAdmin={user.is_admin}
       onLogout={handleLogout}
       isLoggingOut={isLoggingOut}
     >
@@ -204,7 +213,9 @@ function Leads() {
         <header className="border-b border-border">
           <div className="flex h-20 items-center px-6 sm:px-8">
             <div>
-              <p className="text-sm text-muted-foreground">Consultant Portal</p>
+              <p className="text-sm text-muted-foreground">
+                {user.is_admin ? "Administrator Portal" : "Consultant Portal"}
+              </p>
 
               <h1 className="text-xl font-semibold tracking-tight">Leads</h1>
             </div>
@@ -230,18 +241,17 @@ function Leads() {
             </div>
 
             <div className="flex flex-wrap items-center gap-3">
-              {/* Export */}
-
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={isExporting || isLoading}
-                className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Download className="size-4" aria-hidden="true" />
-
-                {isExporting ? "Exporting..." : "Export Excel"}
-              </button>
+              {user.is_admin && (
+                <button
+                  type="button"
+                  onClick={handleExport}
+                  disabled={isExporting || isLoading}
+                  className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Download className="size-4" aria-hidden="true" />
+                  {isExporting ? "Exporting..." : "Export Excel"}
+                </button>
+              )}
 
               {/* Dashboard */}
 
@@ -272,67 +282,79 @@ function Leads() {
               Filters
           ================================================= */}
 
-          <section className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-2 pb-4">
-              <SlidersHorizontal
-                className="size-4 text-muted-foreground"
-                aria-hidden="true"
-              />
-
-              <p className="text-sm font-medium">Filters</p>
-            </div>
-
-            <div className="grid gap-3 md:grid-cols-3">
-              {/* Search */}
-
-              <div className="relative">
-                <Search
-                  className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                  aria-hidden="true"
-                />
-
-                <input
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  placeholder="Search name, email or phone..."
-                  className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-sm outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
-                />
-              </div>
-
-              {/* Status */}
-
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as "ALL" | Lead["status"])
-                }
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
-              >
-                {STATUS_OPTIONS.map((status) => (
-                  <option key={status} value={status}>
-                    {status === "ALL" ? "All statuses" : status}
-                  </option>
-                ))}
-              </select>
-
-              {/* Service */}
-
-              <select
-                value={serviceFilter}
-                onChange={(event) => setServiceFilter(event.target.value)}
-                className="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
-              >
-                <option value="ALL">All services</option>
-
-                {serviceOptions.map((service) => (
-                  <option key={service} value={service}>
-                    {service}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </section>
+          <FilterToolbar
+            search={
+              <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">
+                Search leads
+                <span className="relative min-w-0">
+                  <Search
+                    className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Lead ID, name, email or phone"
+                    className="h-10 w-full min-w-0 rounded-lg border border-input bg-background pl-9 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  />
+                </span>
+              </label>
+            }
+            status={
+              <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">
+                Status
+                <select
+                  aria-label="Filter leads by status"
+                  value={statusFilter}
+                  onChange={(event) =>
+                    setStatusFilter(
+                      event.target.value as "ALL" | LeadSummary["status"],
+                    )
+                  }
+                  className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                >
+                  {STATUS_OPTIONS.map((status) => (
+                    <option key={status} value={status}>
+                      {status === "ALL" ? "All statuses" : status}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            }
+            additional={
+              <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">
+                Service
+                <select
+                  aria-label="Filter leads by service"
+                  value={serviceFilter}
+                  onChange={(event) => setServiceFilter(event.target.value)}
+                  className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="ALL">All services</option>
+                  {serviceOptions.map((service) => (
+                    <option key={service} value={service}>
+                      {service}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            }
+            dateFilter={dateFilter}
+            onDateFilterChange={setDateFilter}
+            hasActiveFilters={
+              Boolean(search.trim()) ||
+              statusFilter !== "ALL" ||
+              serviceFilter !== "ALL" ||
+              dateFilter.kind !== "all"
+            }
+            onClear={() => {
+              setSearch("");
+              setStatusFilter("ALL");
+              setServiceFilter("ALL");
+              setDateFilter({ kind: "all" });
+            }}
+          />
 
           {/* =================================================
               Results
@@ -348,6 +370,8 @@ function Leads() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   {isLoading
                     ? "Loading..."
+                    : error
+                      ? "Lead data unavailable"
                     : `${filteredLeads.length} ${
                         filteredLeads.length === 1 ? "lead" : "leads"
                       }`}
@@ -361,6 +385,10 @@ function Leads() {
               <div className="px-6 py-12 text-center text-sm text-muted-foreground">
                 Loading enquiries...
               </div>
+            ) : error ? (
+              <div className="px-6 py-12 text-center text-sm text-destructive">
+                Leads could not be loaded.
+              </div>
             ) : filteredLeads.length === 0 ? (
               /* Empty state */
 
@@ -368,16 +396,20 @@ function Leads() {
                 <p className="text-sm font-medium">No leads found</p>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Try changing your search or filters.
+                  {leads.length === 0
+                    ? "There are currently no leads."
+                    : "No leads match the current search or filters."}
                 </p>
               </div>
             ) : (
               /* Table */
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-sm">
+                <table className="w-full min-w-[1000px] text-sm">
                   <thead>
                     <tr className="border-b border-border text-left text-muted-foreground">
+                      <th className="px-6 py-3 font-medium">Lead ID</th>
+
                       <th className="px-6 py-3 font-medium">Name</th>
 
                       <th className="px-6 py-3 font-medium">Email</th>
@@ -396,11 +428,29 @@ function Leads() {
                     {filteredLeads.map((lead) => (
                       <tr
                         key={lead.id}
-                        onClick={() => {
+                        onDoubleClick={(event) => {
+                          const target = event.target;
+                          if (
+                            target instanceof Element &&
+                            target.closest(
+                              "a, button, input, select, textarea",
+                            )
+                          ) {
+                            return;
+                          }
                           window.location.href = `/dashboard/leads/${lead.id}`;
                         }}
                         className="cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/50"
                       >
+                        <td className="px-6 py-4">
+                          <a
+                            href={`/dashboard/leads/${lead.id}`}
+                            className="font-medium underline-offset-4 hover:underline"
+                          >
+                            {lead.id}
+                          </a>
+                        </td>
+
                         {/* Name */}
 
                         <td className="px-6 py-4 font-medium">{lead.name}</td>
@@ -444,30 +494,6 @@ function Leads() {
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-// =========================================================
-// Status Badge
-// =========================================================
-
-function StatusBadge({ status }: { status: Lead["status"] }) {
-  const styles = {
-    NEW: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-
-    CONTACTED: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
-
-    CONVERTED: "bg-green-500/10 text-green-700 dark:text-green-300",
-
-    CLOSED: "bg-muted text-muted-foreground",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${styles[status]}`}
-    >
-      {status}
-    </span>
   );
 }
 

@@ -17,6 +17,20 @@ class LeadResponse(BaseModel):
     updated_at: datetime
 
 
+class ConsultantLeadSummary(BaseModel):
+    id: int
+    name: str
+    email: str
+    phone: str
+    service: str
+    status: LeadStatus
+    created_at: datetime
+
+
+class ConsultantLeadListResponse(BaseModel):
+    leads: list[ConsultantLeadSummary]
+
+
 class LeadListResponse(BaseModel):
     leads: list[LeadResponse]
 

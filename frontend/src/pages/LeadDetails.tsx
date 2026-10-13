@@ -10,23 +10,19 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import StatusBadge from "@/components/dashboard/StatusBadge";
 
 import {
   createCase,
-  getCases,
+  getCaseForLead,
   getCurrentUser,
   getLead,
   logout,
   updateLeadStatus,
   type Case,
+  type CurrentUser,
   type Lead,
 } from "@/services/api";
-
-interface CurrentUser {
-  id: number;
-  email: string;
-  full_name: string;
-}
 
 const STATUS_OPTIONS: Lead["status"][] = [
   "NEW",
@@ -59,6 +55,7 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
   const [successMessage, setSuccessMessage] = useState("");
 
   const [caseData, setCaseData] = useState<Case | null>(null);
+  const [caseLookupError, setCaseLookupError] = useState("");
 
   const [isLoadingCase, setIsLoadingCase] = useState(true);
 
@@ -84,17 +81,21 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
         setLead(leadData);
         setSelectedStatus(leadData.status);
 
-        try {
-          const casesResponse = await getCases();
-
-          const existingCase =
-            casesResponse.find(
-              (currentCase) => currentCase.lead_id === leadData.id,
-            ) ?? null;
-
-          setCaseData(existingCase);
-        } catch {
-          setCaseData(null);
+        if (currentUser.is_admin) {
+          try {
+            setCaseData(await getCaseForLead(leadData.id));
+          } catch (caseError) {
+            if (
+              caseError instanceof Error &&
+              caseError.message === "Case not found for this lead."
+            ) {
+              setCaseData(null);
+            } else {
+              setCaseLookupError(
+                "Unable to verify whether a case already exists. Case creation is unavailable until this can be checked.",
+              );
+            }
+          }
         }
       } catch (error) {
         if (
@@ -195,11 +196,8 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
       });
 
       setCaseData(createdCase);
-
-      const updatedLead = await getLead(lead.id);
-
-      setLead(updatedLead);
-      setSelectedStatus(updatedLead.status);
+      setLead({ ...lead, status: "CONVERTED" });
+      setSelectedStatus("CONVERTED");
 
       setPropertyType("");
       setPropertyValue("");
@@ -215,6 +213,28 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
         window.location.href = "/login";
 
         return;
+      }
+
+      if (
+        error instanceof Error &&
+        error.message === "A case already exists for this lead."
+      ) {
+        try {
+          const existingCase = await getCaseForLead(lead.id);
+          setCaseData(existingCase);
+          const updatedLead = await getLead(lead.id);
+          setLead(updatedLead);
+          setSelectedStatus(updatedLead.status);
+          setSuccessMessage(
+            "This lead already has a case. The existing case is shown below.",
+          );
+          return;
+        } catch {
+          setError(
+            "A case already exists for this lead, but its details could not be loaded. Refresh the page to try again.",
+          );
+          return;
+        }
       }
 
       setError(
@@ -271,6 +291,7 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
     <DashboardLayout
       fullName={user.full_name}
       email={user.email}
+      isAdmin={user.is_admin}
       onLogout={handleLogout}
       isLoggingOut={isLoggingOut}
     >
@@ -279,7 +300,9 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
         <header className="border-b border-border">
           <div className="flex min-h-20 items-center justify-between gap-4 px-6 sm:px-8">
             <div>
-              <p className="text-sm text-muted-foreground">Consultant Portal</p>
+              <p className="text-sm text-muted-foreground">
+                {user.is_admin ? "Administrator Portal" : "Consultant Portal"}
+              </p>
 
               <h1 className="text-xl font-semibold tracking-tight">
                 Lead Details
@@ -337,7 +360,7 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
                   </h2>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Lead #{lead.id}
+                    {lead.id}
                   </p>
                 </div>
               </div>
@@ -405,18 +428,20 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
             </section>
           </div>
 
-          {/* Status management */}
+          {/* Lead status */}
           <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="font-semibold">Lead Status</h2>
 
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Update the current stage of this enquiry.
+                  {user.is_admin
+                    ? "Update the current stage of this enquiry."
+                    : "Current stage of this enquiry."}
                 </p>
               </div>
 
-              {!isEditingStatus && (
+              {user.is_admin && !isEditingStatus && (
                 <button
                   type="button"
                   onClick={handleEditStatus}
@@ -442,7 +467,7 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
                   onChange={(event) =>
                     setSelectedStatus(event.target.value as Lead["status"])
                   }
-                  disabled={!isEditingStatus || isSaving}
+                  disabled={!user.is_admin || !isEditingStatus || isSaving}
                   className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {STATUS_OPTIONS.map((status) => (
@@ -477,8 +502,33 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
             </div>
           </section>
 
+          {user.is_admin && !isLoadingCase && !caseData && (
+            <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
+              <h2 className="font-semibold">Case eligibility</h2>
+              {caseLookupError ? (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                  {caseLookupError}
+                </p>
+              ) : lead.status !== "CONTACTED" ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  A case is unavailable while this lead is {lead.status}. Update
+                  the lead to CONTACTED before creating a case.
+                </p>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  This lead is eligible. Creating a case will convert it to
+                  CONVERTED. Each lead can have one case.
+                </p>
+              )}
+            </section>
+          )}
+
           {/* Create Case */}
-          {lead.status === "CONTACTED" && !caseData && (
+          {user.is_admin &&
+            lead.status === "CONTACTED" &&
+            !caseData &&
+            !isLoadingCase &&
+            !caseLookupError && (
             <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex items-start gap-3">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
@@ -492,8 +542,8 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
                   <h2 className="font-semibold">Create Case</h2>
 
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Create a financing case when this enquiry moves into active
-                    client handling.
+                    A case can be created after this lead reaches CONTACTED.
+                    Creating the case changes the lead to CONVERTED.
                   </p>
                 </div>
               </div>
@@ -585,10 +635,10 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
                 </button>
               </div>
             </section>
-          )}
+            )}
 
           {/* Existing Case */}
-          {!isLoadingCase && caseData && (
+          {user.is_admin && !isLoadingCase && caseData && (
             <section className="rounded-2xl border border-border bg-card p-6 shadow-sm sm:p-8">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div className="flex items-start gap-3">
@@ -603,7 +653,7 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
                     <h2 className="font-semibold">Financing Case</h2>
 
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {caseData.case_reference}
+                      Case {caseData.id}
                     </p>
                   </div>
                 </div>
@@ -617,7 +667,14 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
               </div>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-3">
-                <InfoCard label="Case Status" value={caseData.status} />
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Case Status
+                  </p>
+                  <div className="mt-2">
+                    <StatusBadge status={caseData.status} />
+                  </div>
+                </div>
 
                 <InfoCard
                   label="Property Type"
@@ -648,26 +705,6 @@ function LeadDetails({ leadId }: LeadDetailsProps) {
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-function StatusBadge({ status }: { status: Lead["status"] }) {
-  const styles: Record<Lead["status"], string> = {
-    NEW: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-
-    CONTACTED: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
-
-    CONVERTED: "bg-green-500/10 text-green-700 dark:text-green-300",
-
-    CLOSED: "bg-muted text-muted-foreground",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${styles[status]}`}
-    >
-      {status}
-    </span>
   );
 }
 

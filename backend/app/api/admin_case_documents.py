@@ -49,6 +49,16 @@ ALLOWED_EXTENSIONS = {
     ".xlsx",
 }
 
+SUSPICIOUS_OFFICE_TOKENS = (
+    b"vba",
+    b"macro",
+    b"thisworkbook",
+    b"project.bin",
+    b"oleobject",
+    b"activex",
+    b"shell.application",
+)
+
 OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 JPEG_SIGNATURE = b"\xff\xd8\xff"
@@ -99,6 +109,13 @@ def validate_file_content(filename: str, content: bytes) -> None:
             detail="Unsupported file type. Upload PDF, PNG, JPEG, Word, or Excel files.",
         )
 
+    lower_content = content.lower()
+    if any(token in lower_content for token in SUSPICIOUS_OFFICE_TOKENS):
+        raise HTTPException(
+            status_code=415,
+            detail="This document contains blocked macro or script content.",
+        )
+
     # PDF
     if extension == ".pdf":
         if not content.startswith(b"%PDF-"):
@@ -139,7 +156,7 @@ def validate_file_content(filename: str, content: bytes) -> None:
     if extension in {".docx", ".xlsx"}:
         try:
             with zipfile.ZipFile(BytesIO(content)) as archive:
-                names = set(archive.namelist())
+                names = {name.lower() for name in archive.namelist()}
 
                 has_content_types = (
                     "[Content_Types].xml" in names
@@ -161,6 +178,42 @@ def validate_file_content(filename: str, content: bytes) -> None:
                         status_code=415,
                         detail="Invalid Office document content.",
                     )
+
+                suspicious_archive_entries = {
+                    name
+                    for name in names
+                    if (
+                        name.startswith("vba/")
+                        or name.endswith("/vba/project.bin")
+                        or name.endswith("/vba/data")
+                        or name.endswith("/vbaProject.bin")
+                    )
+                }
+
+                if suspicious_archive_entries:
+                    raise HTTPException(
+                        status_code=415,
+                        detail="This document contains blocked macro or script content.",
+                    )
+
+                for member_name in archive.namelist():
+                    member_lower = member_name.lower()
+                    if not member_lower.endswith((".xml", ".bin", ".rels")):
+                        continue
+
+                    try:
+                        entry_bytes = archive.read(member_name)
+                    except Exception:
+                        continue
+
+                    if any(
+                        token in entry_bytes.lower()
+                        for token in SUSPICIOUS_OFFICE_TOKENS
+                    ):
+                        raise HTTPException(
+                            status_code=415,
+                            detail="This document contains blocked macro or script content.",
+                        )
 
         except zipfile.BadZipFile as exc:
             raise HTTPException(

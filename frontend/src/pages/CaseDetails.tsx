@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import StatusBadge from "@/components/dashboard/StatusBadge";
 
 import {
   getCase,
@@ -32,13 +33,8 @@ import {
   type CaseDocumentFile,
   type CaseDocumentStatus,
   type CaseStatus,
+  type CurrentUser,
 } from "@/services/api";
-
-interface CurrentUser {
-  id: number;
-  email: string;
-  full_name: string;
-}
 
 const CASE_STATUS_OPTIONS: CaseStatus[] = [
   "OPEN",
@@ -89,11 +85,40 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
     null,
   );
 
+  async function loadDocuments(id: number) {
+    setIsDocumentsLoading(true);
+
+    try {
+      const caseDocuments = await getCaseDocuments(id);
+      setDocuments(caseDocuments);
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message === "Authentication required."
+      ) {
+        window.location.href = "/login";
+        return;
+      }
+
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load case documents.",
+      );
+    } finally {
+      setIsDocumentsLoading(false);
+    }
+  }
+
   useEffect(() => {
     async function loadCaseDetails() {
       try {
         const currentUser = await getCurrentUser();
         setUser(currentUser);
+        if (!currentUser.is_admin) {
+          setError("Administrator access required.");
+          return;
+        }
 
         const caseResponse = await getCase(caseId);
         setCaseData(caseResponse);
@@ -120,31 +145,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
     loadCaseDetails();
   }, [caseId]);
-
-  async function loadDocuments(id: number) {
-    setIsDocumentsLoading(true);
-
-    try {
-      const caseDocuments = await getCaseDocuments(id);
-      setDocuments(caseDocuments);
-    } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === "Authentication required."
-      ) {
-        window.location.href = "/login";
-        return;
-      }
-
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Unable to load case documents.",
-      );
-    } finally {
-      setIsDocumentsLoading(false);
-    }
-  }
 
   function handleEditStatus() {
     if (!caseData) return;
@@ -182,7 +182,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
         error instanceof Error &&
         error.message === "Authentication required."
       ) {
-        window.location.href = "/login";
+        window.location.assign("/login");
         return;
       }
 
@@ -368,7 +368,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
         error instanceof Error &&
         error.message === "Authentication required."
       ) {
-        window.location.href = "/login";
+        window.location.assign("/login");
         return;
       }
 
@@ -426,6 +426,7 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
     <DashboardLayout
       fullName={user.full_name}
       email={user.email}
+      isAdmin={user.is_admin}
       onLogout={handleLogout}
       isLoggingOut={isLoggingOut}
     >
@@ -434,7 +435,9 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
         <header className="border-b border-border">
           <div className="flex min-h-20 items-center justify-between gap-4 px-6 sm:px-8">
             <div>
-              <p className="text-sm text-muted-foreground">Consultant Portal</p>
+              <p className="text-sm text-muted-foreground">
+                Administrator Portal
+              </p>
               <h1 className="text-xl font-semibold tracking-tight">
                 Case Details
               </h1>
@@ -484,15 +487,22 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
 
                 <div>
                   <h2 className="text-2xl font-semibold tracking-tight">
-                    {caseData.case_reference}
+                    Case {caseData.id}
                   </h2>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Case #{caseData.id} · Lead #{caseData.lead_id}
+                    Lead:{" "}
+                    <a
+                      href={`/dashboard/leads/${caseData.lead_id}`}
+                      className="font-medium text-foreground underline-offset-4 hover:underline"
+                    >
+                      {caseData.lead_name || "Name unavailable"} · Lead{" "}
+                      {caseData.lead_id}
+                    </a>
                   </p>
                 </div>
               </div>
 
-              <CaseStatusBadge status={caseData.status} />
+              <StatusBadge status={caseData.status} />
             </div>
           </section>
 
@@ -885,7 +895,8 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
               <div>
                 <h2 className="font-semibold">Related Lead</h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  This case was created from Lead #{caseData.lead_id}.
+                  {caseData.lead_name || "Name unavailable"} · Lead{" "}
+                  {caseData.lead_id}
                 </p>
               </div>
             </div>
@@ -966,26 +977,6 @@ function CaseDetails({ caseId }: CaseDetailsProps) {
   );
 }
 
-function CaseStatusBadge({ status }: { status: CaseStatus }) {
-  const styles: Record<CaseStatus, string> = {
-    OPEN: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-    DOCUMENTS_PENDING: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
-    DOCUMENTS_RECEIVED: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300",
-    UNDER_REVIEW: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-    SUBMITTED: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-    APPROVED: "bg-green-500/10 text-green-700 dark:text-green-300",
-    COMPLETED: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    CANCELLED: "bg-muted text-muted-foreground",
-  };
-
-  return (
-    <span
-      className={`inline-flex rounded-full px-3 py-1.5 text-xs font-medium ${styles[status]}`}
-    >
-      {status}
-    </span>
-  );
-}
 
 function DocumentStatusBadge({ status }: { status: CaseDocumentStatus }) {
   if (status === "RECEIVED") {

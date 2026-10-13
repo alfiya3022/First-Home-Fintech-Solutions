@@ -53,3 +53,8 @@ class CaseResponse(BaseModel):
 
 class CaseListResponse(BaseModel):
     cases: list[CaseResponse]
+
+
+class CaseDashboardSummary(BaseModel):
+    total_cases: int
+    cases_by_status: dict[CaseStatus, int]

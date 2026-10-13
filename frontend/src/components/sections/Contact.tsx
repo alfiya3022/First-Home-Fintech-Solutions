@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { ArrowRight } from "lucide-react";
-import PhoneInput from "react-phone-number-input";
+import PhoneInput, { isValidPhoneNumber } from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 
 import contactImage from "@/assets/images/contact-image.jpg";
@@ -33,6 +33,9 @@ interface ContactFormData {
   website: string;
 }
 
+type ContactField = Exclude<keyof ContactFormData, "website">;
+type ContactFieldErrors = Partial<Record<ContactField, string>>;
+
 const initialFormData: ContactFormData = {
   name: "",
   email: "",
@@ -48,12 +51,21 @@ function Contact() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
   const [isSuccess, setIsSuccess] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<ContactFieldErrors>({});
 
   function handleChange(field: keyof ContactFormData, value: string) {
     setFormData((current) => ({
       ...current,
       [field]: value,
     }));
+
+    if (field !== "website" && fieldErrors[field]) {
+      setFieldErrors((current) => {
+        const next = { ...current };
+        delete next[field];
+        return next;
+      });
+    }
 
     if (statusMessage) {
       setStatusMessage("");
@@ -68,9 +80,29 @@ function Contact() {
       return;
     }
 
+    const errors: ContactFieldErrors = {};
+    if (formData.name.trim().length < 2) {
+      errors.name = "Please enter your name (at least 2 characters).";
+    }
+    if (!formData.email.trim()) {
+      errors.email = "Please enter your email address.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+      errors.email = "Please enter a valid email address.";
+    }
+    if (!formData.phone) {
+      errors.phone = "Please enter your contact number.";
+    } else if (!isValidPhoneNumber(formData.phone)) {
+      errors.phone = "Please enter a valid contact number.";
+    }
+    if (!formData.service) {
+      errors.service = "Please select a service.";
+    }
     if (formData.message.trim().length < 10) {
-      setStatusMessage("Please enter at least 10 characters in your message.");
-      setIsSuccess(false);
+      errors.message = "Please enter at least 10 characters about your enquiry.";
+    }
+
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
       return;
     }
 
@@ -138,7 +170,15 @@ function Contact() {
               </p>
             </div>
 
-            <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+            <form
+              className="mt-8 space-y-5"
+              onSubmit={handleSubmit}
+              noValidate
+            >
+              <p className="text-sm text-[#68727D]">
+                Fields marked <span className="font-semibold text-red-700">*</span>{" "}
+                are required.
+              </p>
               <div
                 aria-hidden="true"
                 className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden"
@@ -163,7 +203,10 @@ function Contact() {
                     htmlFor="contact-name"
                     className="mb-2 block text-sm font-medium text-[#071B2D]"
                   >
-                    Name
+                      Name{" "}
+                      <span aria-hidden="true" className="text-red-700">
+                        *
+                      </span>
                   </label>
 
                   <input
@@ -171,7 +214,10 @@ function Contact() {
                     name="name"
                     type="text"
                     autoComplete="name"
-                    required
+                    aria-invalid={Boolean(fieldErrors.name)}
+                    aria-describedby={
+                      fieldErrors.name ? "contact-name-error" : undefined
+                    }
                     value={formData.name}
                     onChange={(event) =>
                       handleChange("name", event.target.value)
@@ -179,6 +225,14 @@ function Contact() {
                     className="h-12 w-full rounded-xl border border-[#E4E0D8] bg-[#FBFAF7] px-4 text-sm text-[#071B2D] outline-none transition placeholder:text-[#9AA1A8] focus:border-[#B99657] focus:ring-2 focus:ring-[#D6BE8A]/30"
                     placeholder="Your name"
                   />
+                  {fieldErrors.name && (
+                    <p
+                      id="contact-name-error"
+                      className="mt-1 text-sm text-red-700"
+                    >
+                      {fieldErrors.name}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -186,7 +240,10 @@ function Contact() {
                     htmlFor="contact-email"
                     className="mb-2 block text-sm font-medium text-[#071B2D]"
                   >
-                    Email
+                      Email{" "}
+                      <span aria-hidden="true" className="text-red-700">
+                        *
+                      </span>
                   </label>
 
                   <input
@@ -194,7 +251,10 @@ function Contact() {
                     name="email"
                     type="email"
                     autoComplete="email"
-                    required
+                    aria-invalid={Boolean(fieldErrors.email)}
+                    aria-describedby={
+                      fieldErrors.email ? "contact-email-error" : undefined
+                    }
                     value={formData.email}
                     onChange={(event) =>
                       handleChange("email", event.target.value)
@@ -202,6 +262,14 @@ function Contact() {
                     className="h-12 w-full rounded-xl border border-[#E4E0D8] bg-[#FBFAF7] px-4 text-sm text-[#071B2D] outline-none transition placeholder:text-[#9AA1A8] focus:border-[#B99657] focus:ring-2 focus:ring-[#D6BE8A]/30"
                     placeholder="you@example.com"
                   />
+                  {fieldErrors.email && (
+                    <p
+                      id="contact-email-error"
+                      className="mt-1 text-sm text-red-700"
+                    >
+                      {fieldErrors.email}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -211,7 +279,10 @@ function Contact() {
                     htmlFor="contact-phone"
                     className="mb-2 block text-sm font-medium text-[#071B2D]"
                   >
-                    Phone
+                      Phone{" "}
+                      <span aria-hidden="true" className="text-red-700">
+                        *
+                      </span>
                   </label>
 
                   <PhoneInput
@@ -219,6 +290,10 @@ function Contact() {
                     international
                     defaultCountry="AE"
                     countryCallingCodeEditable={false}
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    aria-describedby={
+                      fieldErrors.phone ? "contact-phone-error" : undefined
+                    }
                     value={formData.phone}
                     onChange={(value) => handleChange("phone", value ?? "")}
                     className="
@@ -248,6 +323,14 @@ function Contact() {
     [&_.PhoneInputInput]:placeholder:text-[#9AA1A8]
   "
                   />
+                  {fieldErrors.phone && (
+                    <p
+                      id="contact-phone-error"
+                      className="mt-1 text-sm text-red-700"
+                    >
+                      {fieldErrors.phone}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -255,13 +338,21 @@ function Contact() {
                     htmlFor="contact-service"
                     className="mb-2 block text-sm font-medium text-[#071B2D]"
                   >
-                    Service
+                      Service{" "}
+                      <span aria-hidden="true" className="text-red-700">
+                        *
+                      </span>
                   </label>
 
                   <select
                     id="contact-service"
                     name="service"
-                    required
+                    aria-invalid={Boolean(fieldErrors.service)}
+                    aria-describedby={
+                      fieldErrors.service
+                        ? "contact-service-error"
+                        : undefined
+                    }
                     value={formData.service}
                     onChange={(event) =>
                       handleChange("service", event.target.value)
@@ -278,6 +369,14 @@ function Contact() {
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.service && (
+                    <p
+                      id="contact-service-error"
+                      className="mt-1 text-sm text-red-700"
+                    >
+                      {fieldErrors.service}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -286,16 +385,22 @@ function Contact() {
                   htmlFor="contact-message"
                   className="mb-2 block text-sm font-medium text-[#071B2D]"
                 >
-                  Message
+                Message{" "}
+                <span aria-hidden="true" className="text-red-700">
+                  *
+                </span>
                 </label>
 
                 <textarea
                   id="contact-message"
                   name="message"
-                  required
                   minLength={10}
                   maxLength={2000}
                   rows={5}
+                  aria-invalid={Boolean(fieldErrors.message)}
+                  aria-describedby={
+                    fieldErrors.message ? "contact-message-error" : undefined
+                  }
                   value={formData.message}
                   onChange={(event) =>
                     handleChange("message", event.target.value)
@@ -303,6 +408,14 @@ function Contact() {
                   className="w-full resize-none rounded-xl border border-[#E4E0D8] bg-[#FBFAF7] px-4 py-3 text-sm text-[#071B2D] outline-none transition placeholder:text-[#9AA1A8] focus:border-[#B99657] focus:ring-2 focus:ring-[#D6BE8A]/30"
                   placeholder="Tell us how we can help..."
                 />
+                {fieldErrors.message && (
+                  <p
+                    id="contact-message-error"
+                    className="mt-1 text-sm text-red-700"
+                  >
+                    {fieldErrors.message}
+                  </p>
+                )}
               </div>
 
               {statusMessage && (

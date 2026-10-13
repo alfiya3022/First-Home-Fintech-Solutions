@@ -4,6 +4,8 @@ from dotenv import load_dotenv
 import msal
 import requests
 
+from app.core.security import normalize_email, normalize_phone_number, sanitize_text
+
 load_dotenv()
 
 
@@ -41,6 +43,28 @@ def send_lead_notification(
             f"Missing Microsoft Graph configuration: {', '.join(missing_values)}"
         )
 
+    try:
+        safe_name = sanitize_text(
+            lead_name,
+            field_name="Lead name",
+            max_length=100,
+        )
+        safe_email = normalize_email(lead_email)
+        safe_phone = normalize_phone_number(lead_phone)
+        safe_service = sanitize_text(
+            lead_service,
+            field_name="Lead service",
+            max_length=100,
+        )
+        safe_message = sanitize_text(
+            lead_message,
+            field_name="Lead message",
+            max_length=2000,
+            allow_newlines=True,
+        )
+    except ValueError as exc:
+        raise RuntimeError(f"Invalid lead payload: {exc}") from exc
+
     authority = f"https://login.microsoftonline.com/{tenant_id}"
 
     app = msal.ConfidentialClientApplication(
@@ -63,19 +87,21 @@ def send_lead_notification(
 
         raise RuntimeError(error_description)
 
-    email_body = f"""
-Name: {lead_name}
-Email: {lead_email}
-Contact Number: {lead_phone}
-Purpose of Contact: {lead_service}
-
-Message:
-{lead_message}
-""".strip()
+    email_body = "\n".join(
+        [
+            f"Name: {safe_name}",
+            f"Email: {safe_email}",
+            f"Contact Number: {safe_phone}",
+            f"Purpose of Contact: {safe_service}",
+            "",
+            "Message:",
+            safe_message,
+        ]
+    )
 
     payload = {
         "message": {
-            "subject": f"New First Home Enquiry — {lead_name}",
+            "subject": f"New First Home Enquiry — {safe_name[:80]}",
             "body": {
                 "contentType": "Text",
                 "content": email_body,
@@ -90,7 +116,7 @@ Message:
             "replyTo": [
                 {
                     "emailAddress": {
-                        "address": lead_email,
+                        "address": safe_email,
                     }
                 }
             ],

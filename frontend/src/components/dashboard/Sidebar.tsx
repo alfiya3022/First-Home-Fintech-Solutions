@@ -10,6 +10,7 @@ import logo from "@/assets/logo/first-home-logo-white.png";
 interface SidebarProps {
   fullName: string;
   email: string;
+  isAdmin: boolean;
   onLogout: () => void;
   isLoggingOut: boolean;
 }
@@ -32,8 +33,17 @@ const navigationItems = [
   },
 ];
 
-function Sidebar({ fullName, email, onLogout, isLoggingOut }: SidebarProps) {
+function Sidebar({
+  fullName,
+  email,
+  isAdmin,
+  onLogout,
+  isLoggingOut,
+}: SidebarProps) {
   const currentPath = window.location.pathname;
+  const visibleNavigationItems = navigationItems.filter(
+    (item) => item.href !== "/dashboard/cases" || isAdmin,
+  );
 
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col bg-[#071B2D] text-white">
@@ -53,7 +63,7 @@ function Sidebar({ fullName, email, onLogout, isLoggingOut }: SidebarProps) {
         </p>
 
         <div className="space-y-1">
-          {navigationItems.map((item) => {
+          {visibleNavigationItems.map((item) => {
             const Icon = item.icon;
 
             const isActive =

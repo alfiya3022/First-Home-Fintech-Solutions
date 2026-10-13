@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  ArrowLeft,
-  BriefcaseBusiness,
-  Search,
-  SlidersHorizontal,
-} from "lucide-react";
+import { ArrowLeft, Search, SlidersHorizontal } from "lucide-react";
 
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import FilterToolbar from "@/components/dashboard/FilterToolbar";
+import StatusBadge from "@/components/dashboard/StatusBadge";
+import {
+  matchesDateFilter,
+  type DateFilter as DateFilterValue,
+} from "@/lib/dateFilter";
 import {
   getCases,
   getCurrentUser,
@@ -28,37 +29,6 @@ const caseStatuses: CaseStatus[] = [
 
 function formatStatus(status: CaseStatus) {
   return status.replaceAll("_", " ");
-}
-
-function getStatusClasses(status: CaseStatus) {
-  switch (status) {
-    case "OPEN":
-      return "bg-blue-50 text-blue-700";
-
-    case "DOCUMENTS_PENDING":
-      return "bg-amber-50 text-amber-700";
-
-    case "DOCUMENTS_RECEIVED":
-      return "bg-cyan-50 text-cyan-700";
-
-    case "UNDER_REVIEW":
-      return "bg-purple-50 text-purple-700";
-
-    case "SUBMITTED":
-      return "bg-indigo-50 text-indigo-700";
-
-    case "APPROVED":
-      return "bg-emerald-50 text-emerald-700";
-
-    case "COMPLETED":
-      return "bg-green-50 text-green-700";
-
-    case "CANCELLED":
-      return "bg-red-50 text-red-700";
-
-    default:
-      return "bg-slate-100 text-slate-700";
-  }
 }
 
 function formatCurrency(value: number | null) {
@@ -85,9 +55,13 @@ function Cases() {
   const [cases, setCases] = useState<Case[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<CaseStatus | "ALL">("ALL");
+  const [dateFilter, setDateFilter] = useState<DateFilterValue>({
+    kind: "all",
+  });
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -99,14 +73,16 @@ function Cases() {
       setError("");
 
       try {
-        const [user, caseList] = await Promise.all([
-          getCurrentUser(),
-          getCases(),
-        ]);
+        const user = await getCurrentUser();
 
         setFullName(user.full_name);
         setEmail(user.email);
-        setCases(caseList);
+        setIsAdmin(user.is_admin);
+        if (!user.is_admin) {
+          setError("Administrator access required.");
+          return;
+        }
+        setCases(await getCases());
       } catch (error) {
         if (
           error instanceof Error &&
@@ -145,22 +121,26 @@ function Cases() {
     return cases.filter((currentCase) => {
       const matchesSearch =
         query === "" ||
+        String(currentCase.id).includes(query) ||
         currentCase.case_reference.toLowerCase().includes(query) ||
+        (currentCase.lead_name ?? "").toLowerCase().includes(query) ||
         String(currentCase.lead_id).includes(query) ||
         (currentCase.property_type ?? "").toLowerCase().includes(query) ||
         currentCase.status.toLowerCase().includes(query);
 
       const matchesStatus =
         statusFilter === "ALL" || currentCase.status === statusFilter;
+      const matchesDate = matchesDateFilter(currentCase.created_at, dateFilter);
 
-      return matchesSearch && matchesStatus;
+      return matchesSearch && matchesStatus && matchesDate;
     });
-  }, [cases, searchQuery, statusFilter]);
+  }, [cases, searchQuery, statusFilter, dateFilter]);
 
   return (
     <DashboardLayout
       fullName={fullName}
       email={email}
+      isAdmin={isAdmin}
       onLogout={handleLogout}
       isLoggingOut={isLoggingOut}
     >
@@ -168,21 +148,16 @@ function Cases() {
         {/* Header */}
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = "/dashboard";
-              }}
-              className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-900"
+            <a
+              href="/dashboard"
+              className="mb-3 inline-flex items-center gap-2 text-lg font-medium text-muted-foreground transition hover:text-foreground"
             >
               <ArrowLeft size={16} />
               Back to Dashboard
-            </button>
+            </a>
 
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#071B2D] text-white">
-                <BriefcaseBusiness size={21} />
-              </div>
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#ffff] text-white"></div>
 
               <div>
                 <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
@@ -202,53 +177,73 @@ function Cases() {
             </p>
 
             <p className="mt-1 text-2xl font-semibold text-slate-900">
-              {cases.length}
+              {isLoading ? "Loading..." : error ? "Unavailable" : cases.length}
             </p>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row">
-            <div className="relative flex-1">
-              <Search
-                size={18}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
 
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
-                placeholder="Search by case reference, lead ID, property type..."
-                className="h-11 w-full rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:bg-white"
-              />
-            </div>
-
-            <div className="relative lg:w-64">
-              <SlidersHorizontal
-                size={17}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as CaseStatus | "ALL")
-                }
-                className="h-11 w-full appearance-none rounded-xl border border-slate-200 bg-slate-50 pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-slate-400 focus:bg-white"
-              >
-                <option value="ALL">All statuses</option>
-
-                {caseStatuses.map((status) => (
-                  <option key={status} value={status}>
-                    {formatStatus(status)}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
+        <FilterToolbar
+          search={
+            <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">
+              Search cases
+              <span className="relative min-w-0">
+                <Search
+                  size={18}
+                  aria-hidden="true"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  placeholder="Case, lead name or ID"
+                  className="h-10 w-full min-w-0 rounded-lg border border-input bg-background pl-10 pr-3 text-sm text-foreground outline-none transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </span>
+            </label>
+          }
+          status={
+            <label className="grid min-w-0 gap-1 text-xs text-muted-foreground">
+              Status
+              <span className="relative min-w-0">
+                <SlidersHorizontal
+                  size={17}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                />
+                <select
+                  aria-label="Filter cases by status"
+                  value={statusFilter}
+                  onChange={(event) =>
+                    setStatusFilter(event.target.value as CaseStatus | "ALL")
+                  }
+                  className="h-10 w-full min-w-0 appearance-none rounded-lg border border-input bg-background pl-10 pr-3 text-sm text-foreground outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                >
+                  <option value="ALL">All statuses</option>
+                  {caseStatuses.map((status) => (
+                    <option key={status} value={status}>
+                      {formatStatus(status)}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </label>
+          }
+          dateFilter={dateFilter}
+          onDateFilterChange={setDateFilter}
+          hasActiveFilters={
+            Boolean(searchQuery.trim()) ||
+            statusFilter !== "ALL" ||
+            dateFilter.kind !== "all"
+          }
+          onClear={() => {
+            setSearchQuery("");
+            setStatusFilter("ALL");
+            setDateFilter({ kind: "all" });
+          }}
+        />
 
         {/* Error */}
         {error && (
@@ -263,11 +258,13 @@ function Cases() {
             <div className="flex min-h-[300px] items-center justify-center">
               <p className="text-sm text-slate-500">Loading cases...</p>
             </div>
+          ) : error ? (
+            <div className="flex min-h-[300px] items-center justify-center px-6 text-center text-sm text-muted-foreground">
+              Cases could not be loaded.
+            </div>
           ) : filteredCases.length === 0 ? (
             <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
-                <BriefcaseBusiness size={21} className="text-slate-500" />
-              </div>
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100"></div>
 
               <h2 className="mt-4 text-base font-semibold text-slate-900">
                 No cases found
@@ -276,7 +273,7 @@ function Cases() {
               <p className="mt-1 max-w-md text-sm text-slate-500">
                 {cases.length === 0
                   ? "There are currently no financing cases."
-                  : "Try changing your search or status filter."}
+                  : "No cases match the current search or filters."}
               </p>
             </div>
           ) : (
@@ -314,31 +311,29 @@ function Cases() {
                   {filteredCases.map((currentCase) => (
                     <tr
                       key={currentCase.id}
-                      onClick={() => {
-                        window.location.href = `/dashboard/cases/${currentCase.id}`;
-                      }}
-                      className="cursor-pointer transition hover:bg-slate-50"
+                      className="transition-colors hover:bg-muted/50"
                     >
                       <td className="px-6 py-4">
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {currentCase.case_reference}
-                          </p>
-
-                          <p className="mt-1 text-xs text-slate-400">
-                            Case ID #{currentCase.id}
-                          </p>
+                          <a
+                            href={`/dashboard/cases/${currentCase.id}`}
+                            className="text-sm font-semibold text-foreground underline-offset-4 hover:underline"
+                          >
+                            {currentCase.id}
+                          </a>
                         </div>
                       </td>
 
                       <td className="px-6 py-4">
-                        <p className="text-sm font-medium text-slate-700">
+                        <a
+                          href={`/dashboard/leads/${currentCase.lead_id}`}
+                          className="text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                        >
                           {currentCase.lead_name ||
-                            `Lead #${currentCase.lead_id}`}
-                        </p>
-
-                        <p className="mt-1 text-xs text-slate-500">
-                          Lead #{currentCase.lead_id}
+                            `Lead ${currentCase.lead_id}`}
+                        </a>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Lead {currentCase.lead_id}
                         </p>
                       </td>
 
@@ -363,13 +358,7 @@ function Cases() {
                       </td>
 
                       <td className="px-6 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClasses(
-                            currentCase.status,
-                          )}`}
-                        >
-                          {formatStatus(currentCase.status)}
-                        </span>
+                        <StatusBadge status={currentCase.status} />
                       </td>
 
                       <td className="px-6 py-4">

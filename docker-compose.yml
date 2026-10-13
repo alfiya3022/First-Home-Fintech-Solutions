@@ -8,6 +8,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - first-home
 
@@ -16,17 +23,39 @@ services:
       context: ./backend
     restart: unless-stopped
     environment:
-      ENVIRONMENT: ${ENVIRONMENT}
+      ENVIRONMENT: production
       DATABASE_URL: ${DATABASE_URL}
+      TRUSTED_PROXY_IP: ${NGINX_PROXY_IP:-172.30.0.2}
       GRAPH_TENANT_ID: ${GRAPH_TENANT_ID}
       GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID}
       GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET}
       GRAPH_SENDER_EMAIL: ${GRAPH_SENDER_EMAIL}
       GRAPH_RECIPIENT_EMAIL: ${GRAPH_RECIPIENT_EMAIL}
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     expose:
       - "8000"
+    networks:
+      - first-home
+
+  notification-worker:
+    build:
+      context: ./backend
+    command: ["python", "-m", "app.workers.notification_worker"]
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: ${DATABASE_URL}
+      GRAPH_TENANT_ID: ${GRAPH_TENANT_ID}
+      GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET}
+      GRAPH_SENDER_EMAIL: ${GRAPH_SENDER_EMAIL}
+      GRAPH_RECIPIENT_EMAIL: ${GRAPH_RECIPIENT_EMAIL}
+      EIBOR_SOURCE_URL: ${EIBOR_SOURCE_URL:-https://centralbank.ae/umbraco/Surface/Eibor/GetEiborData}
+    depends_on:
+      db:
+        condition: service_healthy
     networks:
       - first-home
 
@@ -34,7 +63,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: /api
+        VITE_API_BASE_URL: ""
     restart: unless-stopped
     depends_on:
       - backend
@@ -46,18 +75,31 @@ services:
   nginx:
     image: nginx:alpine
     restart: unless-stopped
+    environment:
+      TLS_CERTIFICATE_PATH: ${TLS_CERTIFICATE_PATH:?Set the container path to the mounted Let's Encrypt fullchain certificate}
+      TLS_PRIVATE_KEY_PATH: ${TLS_PRIVATE_KEY_PATH:?Set the container path to the mounted Let's Encrypt private key}
     depends_on:
       - frontend
       - backend
     ports:
       - "80:80"
+      - "443:443"
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    command: >
-      /bin/sh -c "rm -f /etc/nginx/conf.d/default.conf &&
-      exec nginx -g 'daemon off;'"
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - type: bind
+        source: ${LETSENCRYPT_ROOT:?Set the host path containing the Let's Encrypt directory}
+        target: /etc/letsencrypt
+        read_only: true
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        envsubst '$$TLS_CERTIFICATE_PATH $$TLS_PRIVATE_KEY_PATH' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+        nginx -t
+        exec nginx -g 'daemon off;'
     networks:
-      - first-home
+      first-home:
+        ipv4_address: ${NGINX_PROXY_IP:-172.30.0.2}
 
   backup:
     build:
@@ -84,12 +126,88 @@ services:
     networks:
       - first-home
 
+  recovery-download:
+    profiles: ["recovery"]
+    build:
+      context: ./backup
+    entrypoint: ["python", "-u", "restore.py"]
+    command: ["download"]
+    environment:
+      GRAPH_TENANT_ID: ${GRAPH_TENANT_ID}
+      GRAPH_CLIENT_ID: ${GRAPH_CLIENT_ID}
+      GRAPH_CLIENT_SECRET: ${GRAPH_CLIENT_SECRET}
+      ONEDRIVE_USER: admin@firsthomefintech.ae
+      ONEDRIVE_FOLDER: FirstHome-Encrypted-Backups
+      RECOVERY_ARTIFACT_DIRECTORY: /recovery
+    volumes:
+      - recovery_artifacts:/recovery
+    networks:
+      - recovery-download
+
+  recovery-db:
+    profiles: ["recovery"]
+    image: postgres:17
+    environment:
+      POSTGRES_DB: first_home_restore
+      POSTGRES_USER: firsthome_restore
+      POSTGRES_PASSWORD: ${RECOVERY_DB_PASSWORD:?Set a unique disposable recovery database password}
+
+    healthcheck:
+      test:
+        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    tmpfs:
+      - /var/lib/postgresql/data:rw,noexec,nosuid,size=${RECOVERY_TMPFS_SIZE:-8g}
+    networks:
+      - recovery-isolated
+
+  recovery-restore:
+    profiles: ["recovery"]
+    build:
+      context: ./backup
+    entrypoint: ["python", "-u", "restore.py"]
+    command: ["restore"]
+    environment:
+      PGHOST: recovery-db
+      PGPORT: "5432"
+      PGDATABASE: first_home_restore
+      PGUSER: firsthome_restore
+      PGPASSWORD: ${RECOVERY_DB_PASSWORD:?Set a unique disposable recovery database password}
+
+      RECOVERY_ARTIFACT_DIRECTORY: /recovery
+      RECOVERY_TEMP_DIRECTORY: /recovery-tmp
+    secrets:
+      - backup_encryption_passphrase
+    volumes:
+      - recovery_artifacts:/recovery:ro
+    tmpfs:
+      - /recovery-tmp:rw,noexec,nosuid,nodev,size=${RECOVERY_TMPFS_SIZE:-8g}
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    read_only: true
+    depends_on:
+      recovery-db:
+        condition: service_healthy
+    networks:
+      - recovery-isolated
+
 volumes:
   postgres_data:
+  recovery_artifacts:
 
 networks:
   first-home:
     driver: bridge
+    ipam:
+      config:
+        - subnet: ${DOCKER_SUBNET:-172.30.0.0/24}
+  recovery-download:
+    driver: bridge
+  recovery-isolated:
+    driver: bridge
+    internal: true
 
 secrets:
   backup_encryption_passphrase:

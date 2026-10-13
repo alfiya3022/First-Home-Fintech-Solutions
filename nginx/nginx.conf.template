@@ -13,11 +13,41 @@ http {
     }
 
     server {
-        listen 80;
+        listen 80 default_server;
         server_name _;
+
+        return 444;
+    }
+
+    server {
+        listen 80;
+        server_name firsthomefintech.ae www.firsthomefintech.ae;
+
+        return 301 https://$host$request_uri;
+    }
+
+    server {
+        listen 443 ssl default_server;
+        server_name _;
+
+        ssl_certificate ${TLS_CERTIFICATE_PATH};
+        ssl_certificate_key ${TLS_PRIVATE_KEY_PATH};
+
+        return 444;
+    }
+
+    server {
+        listen 443 ssl;
+        server_name firsthomefintech.ae www.firsthomefintech.ae;
+
+        ssl_certificate ${TLS_CERTIFICATE_PATH};
+        ssl_certificate_key ${TLS_PRIVATE_KEY_PATH};
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_session_tickets off;
 
         client_max_body_size 25m;
 
+        add_header Strict-Transport-Security "max-age=31536000" always;
         add_header X-Content-Type-Options "nosniff" always;
         add_header X-Frame-Options "DENY" always;
         add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -26,7 +56,7 @@ http {
             proxy_pass http://backend/health;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
@@ -34,7 +64,15 @@ http {
             proxy_pass http://backend/health;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location = /ready {
+            proxy_pass http://backend/ready;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
@@ -44,7 +82,7 @@ http {
             proxy_pass http://backend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
@@ -54,7 +92,7 @@ http {
             proxy_pass http://backend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
@@ -62,7 +100,7 @@ http {
             proxy_pass http://backend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
 
@@ -70,7 +108,7 @@ http {
             proxy_pass http://frontend;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Forwarded-Proto $scheme;
         }
     }

@@ -4,12 +4,54 @@
 
 - Current Phase: Phase 5 â€” Implementation
 - Current Sub-Phase: V2 Application Baseline
-- Overall Status: V2 locally implemented and verified
-- Last Updated: 2026-10-07
-- Last Completed Task: End-to-end Lead â†’ Case workflow verification
-- Next Task: Production security / hardening review
-- Blockers: None for local V2 baseline
-- Pending Approval: Production hardening
+- Overall Status: V2 implementation exists; production readiness is NOT established
+- Last Updated: 2026-10-11
+- Last Completed Task: Isolated backend tests and frontend lint/build
+- Next Task: Complete release gates in disposable and approved test environments
+- Blockers: HTTPS deployment, PostgreSQL release verification, secret custody, live integrations, and reproducible recovery remain unresolved
+- Pending Approval: External-service, cloud, migration, and deployment operations
+
+## Current Release Gate Assessment
+
+This assessment supersedes any older summary below that could be read as
+production approval. Older local verification notes are historical records;
+they do not establish current-worktree, production, or reproducible
+third-party integration behavior.
+
+- Release status: NOT READY for public production deployment.
+- Current local checks: backend tests pass against an isolated temporary
+  SQLite database (46 passed; disposable-PostgreSQL integration test skipped);
+  frontend routing tests (5), lint, and production build pass. Compose syntax
+  validates with dummy values; PostgreSQL migration SQL generates offline.
+- The latest successful GitHub Actions run is for committed revision
+  `21e6bbda1f7242cfd53fae678752cf42b0060fe1`, not this modified worktree.
+- A PostgreSQL-backed per-IP contact limiter and additive Alembic migration
+  are implemented. PostgreSQL migration and throttle tests remain unverified
+  against a disposable PostgreSQL database.
+- Nginx is configured for read-only host-managed certificate mounts, port 443,
+  HTTP redirection, proxy-header overwriting, and a fixed trusted proxy IP.
+  No TLS certificate has been provisioned; Nginx syntax and public HTTPS,
+  secure-cookie, and proxy behavior are not yet verified.
+- Docker Compose configuration validation does not need a daemon, but Nginx
+  and disposable-PostgreSQL runtime validation are blocked until Docker's
+  Linux engine is available. The Docker CLI is installed, but its Linux
+  engine is not running; no container was started.
+- Nginx TLS rendering and `nginx -t` have not been run. The temporary
+  certificate test was not attempted because neither the Docker engine nor an
+  Nginx binary is available.
+- Live Graph, SharePoint, OneDrive, production monitoring, backup restoration,
+  and post-deployment smoke tests remain unverified by this assessment.
+- Database backups exclude SharePoint document binaries.
+- The ignored local `backend.zip` archive contains `backend/.env` and the
+  virtual environment. Environment files and the backup passphrase file are
+  ignored by Git, but the repository is located under a OneDrive directory;
+  whether the files were synchronized or shared is unknown. Do not delete,
+  rotate, or disclose these artifacts without owner approval.
+- SharePoint upload precedes the database metadata commit. A commit failure
+  can leave an orphaned binary; automated reconciliation is not implemented.
+- The backup implementation encrypts PostgreSQL dumps with symmetric GPG
+  encryption and applies remote deletion-based retention, but no reproducible
+  restore procedure or independent encryption-key custody is evidenced.
 
 ## Phase Status
 
@@ -22,9 +64,9 @@
 | Phase 4 â€” Architecture                  | Complete    | Yes       |                                                                       |
 | Phase 5 â€” Implementation                | In Progress | Yes       | V2 application baseline implemented and locally verified              |
 | Phase 6 â€” Testing                       | In Progress | Partial   | Local functional verification completed; formal production QA remains |
-| Phase 7 â€” Security / Hardening          | Not Started | No        | Next major task                                                       |
-| Phase 8 â€” Docker                        | Not Started | No        |                                                                       |
-| Phase 9 â€” CI/CD                         | Not Started | No        |                                                                       |
+| Phase 7 â€” Security / Hardening          | In Progress | Partial   | Local hardening and tests underway; release security gates remain open |
+| Phase 8 â€” Docker                        | In Progress | Partial   | Compose exists; HTTPS and production runtime verification remain open  |
+| Phase 9 â€” CI/CD                         | In Progress | Partial   | Test/build workflow exists; current worktree is not covered by CI       |
 | Phase 10 â€” Staging                      | Not Started | No        |                                                                       |
 | Phase 11 â€” Domain / Hosting             | Not Started | No        |                                                                       |
 | Phase 12 â€” Production QA                | Not Started | No        |                                                                       |
@@ -208,7 +250,9 @@ The following local workflows have been manually verified:
 ## Deferred / Pending Decisions
 
 - Final live mortgage market-rate section â€” awaiting client confirmation.
-- Automatic EIBOR backend update â€” later integration.
+- EIBOR automatic checks and protected monitoring are implemented; live server
+  retrieval remains blocked by the CBUAE HTTP 403 challenge and requires
+  approved access.
 - Microsoft 365 mailbox setup.
 - Microsoft Graph email integration.
 - SharePoint document integration.
@@ -224,7 +268,10 @@ The following local workflows have been manually verified:
 
 Production security and hardening review before Docker/deployment.
 
-## Docker and Nginx Deployment â€” Completed Locally
+## Historical Docker and Nginx Deployment Notes â€” Completed Locally
+
+These notes describe a prior HTTP-only local setup and are not the current
+production TLS topology or launch evidence.
 
 **Status:** Local verification completed
 **Date:** 9 October 2026
@@ -280,7 +327,12 @@ Verification report: `verification-reports/phase1-20261010-234755.txt`
 
 Note: Route inventory does not establish end-to-end workflow success. Production database migration, production CORS, production HTTPS, and live SharePoint/email behaviour must be verified in the deployment environment. Restart behaviour was inspected, not actively tested. GitHub Actions is complete only after a successful relevant workflow run is confirmed.
 
-## Go-Live Verification â€” 2026-10-11
+## Historical Go-Live Verification Notes â€” 2026-10-11
+
+The following are historical reported checks, not evidence reproduced against
+the current worktree or production. In particular, the prior statement that
+backup restoration was verified has no checked-in reproducible procedure;
+live SharePoint and Graph operations were not repeated in this assessment.
 
 ### Verified locally
 - Backend tests: 10 passed; 24 warnings reported.

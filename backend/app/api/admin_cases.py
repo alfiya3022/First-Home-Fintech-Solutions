@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.auth import require_admin
@@ -11,11 +12,16 @@ from app.models.leads import Lead, LeadStatus
 from app.models.users import User
 from app.schemas.cases import (
     CaseCreateRequest,
+    CaseDashboardSummary,
     CaseNotesUpdate,
     CaseResponse,
     CaseListResponse,
     CaseStatusUpdate,
 )
+
+
+CASE_REFERENCE_LOCK_KEY = 461202601
+
 
 router = APIRouter(
     prefix="/api/admin/cases",
@@ -23,18 +29,70 @@ router = APIRouter(
 )
 
 
+def lock_case_reference_generation(db: Session) -> None:
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(
+            text("SELECT pg_advisory_xact_lock(:lock_key)"),
+            {"lock_key": CASE_REFERENCE_LOCK_KEY},
+        )
+
+
 def generate_case_reference(db: Session) -> str:
-    year = datetime.now().year
+    prefix = f"FH-{datetime.now().year}-"
+    references = db.scalars(
+        select(Case.case_reference).where(Case.case_reference.like(f"{prefix}%"))
+    )
+    next_number = max(
+        (
+            int(reference[len(prefix) :])
+            for reference in references
+            if reference.startswith(prefix)
+            and reference[len(prefix) :].isdigit()
+        ),
+        default=0,
+    ) + 1
 
-    result = db.execute(
-        select(Case.id)
-        .order_by(Case.id.desc())
-        .limit(1)
-    ).scalar_one_or_none()
+    return f"{prefix}{next_number:05d}"
 
-    next_number = (result or 0) + 1
 
-    return f"FH-{year}-{next_number:05d}"
+def serialize_case(case: Case, lead_name: str | None) -> dict:
+    return {
+        "id": case.id,
+        "lead_id": case.lead_id,
+        "lead_name": lead_name,
+        "case_reference": case.case_reference,
+        "status": case.status,
+        "property_type": case.property_type,
+        "property_value": case.property_value,
+        "loan_amount": case.loan_amount,
+        "notes": case.notes,
+        "created_at": case.created_at,
+        "updated_at": case.updated_at,
+    }
+
+
+@router.get(
+    "/summary",
+    response_model=CaseDashboardSummary,
+)
+def get_case_summary(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    counts = dict(
+        db.execute(
+            select(Case.status, func.count(Case.id)).group_by(Case.status)
+        ).all()
+    )
+    cases_by_status = {
+        case_status: counts.get(case_status, 0)
+        for case_status in CaseStatus
+    }
+
+    return {
+        "total_cases": sum(cases_by_status.values()),
+        "cases_by_status": cases_by_status,
+    }
 
 
 @router.post(
@@ -47,6 +105,15 @@ def create_case(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
+    try:
+        lock_case_reference_generation(db)
+    except Exception:
+        db.rollback()
+        raise HTTPException(
+            status_code=503,
+            detail="We couldn't create the case right now. Please try again later.",
+        )
+
     lead = db.get(Lead, request.lead_id)
 
     if lead is None:
@@ -92,6 +159,21 @@ def create_case(
         db.commit()
         db.refresh(case)
 
+    except IntegrityError:
+        db.rollback()
+
+        if db.scalar(
+            select(Case).where(Case.lead_id == request.lead_id)
+        ) is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="A case already exists for this lead.",
+            )
+
+        raise HTTPException(
+            status_code=503,
+            detail="We couldn't create the case right now. Please try again later.",
+        )
     except Exception:
         db.rollback()
 
@@ -100,7 +182,7 @@ def create_case(
             detail="We couldn't create the case right now. Please try again later.",
         )
 
-    return case
+    return serialize_case(case, lead.name)
 
 
 @router.get(
@@ -117,28 +199,36 @@ def get_cases(
         .order_by(Case.created_at.desc())
     ).all()
 
-    cases = []
-
-    for case, lead_name in rows:
-        case_data = {
-            "id": case.id,
-            "lead_id": case.lead_id,
-            "lead_name": lead_name,
-            "case_reference": case.case_reference,
-            "status": case.status,
-            "property_type": case.property_type,
-            "property_value": case.property_value,
-            "loan_amount": case.loan_amount,
-            "notes": case.notes,
-            "created_at": case.created_at,
-            "updated_at": case.updated_at,
-        }
-
-        cases.append(case_data)
-
     return {
-        "cases": cases,
+        "cases": [
+            serialize_case(case, lead_name)
+            for case, lead_name in rows
+        ],
     }
+
+
+@router.get(
+    "/by-lead/{lead_id}",
+    response_model=CaseResponse,
+)
+def get_case_for_lead(
+    lead_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    row = db.execute(
+        select(Case, Lead.name)
+        .join(Lead, Lead.id == Case.lead_id)
+        .where(Case.lead_id == lead_id)
+    ).one_or_none()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Case not found for this lead.",
+        )
+
+    return serialize_case(*row)
 
 
 @router.get(
@@ -150,15 +240,19 @@ def get_case(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    case = db.get(Case, case_id)
+    row = db.execute(
+        select(Case, Lead.name)
+        .join(Lead, Lead.id == Case.lead_id)
+        .where(Case.id == case_id)
+    ).one_or_none()
 
-    if case is None:
+    if row is None:
         raise HTTPException(
             status_code=404,
             detail="Case not found.",
         )
 
-    return case
+    return serialize_case(*row)
 
 
 @router.patch(
@@ -193,7 +287,8 @@ def update_case_status(
             detail="We couldn't update the case status right now. Please try again later.",
         )
 
-    return case
+    lead_name = db.scalar(select(Lead.name).where(Lead.id == case.lead_id))
+    return serialize_case(case, lead_name)
 
 @router.patch("/{case_id}/notes", response_model=CaseResponse)
 def update_case_notes(
@@ -215,4 +310,5 @@ def update_case_notes(
     db.commit()
     db.refresh(case)
 
-    return case
+    lead_name = db.scalar(select(Lead.name).where(Lead.id == case.lead_id))
+    return serialize_case(case, lead_name)

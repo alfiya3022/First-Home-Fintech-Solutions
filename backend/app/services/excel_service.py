@@ -1,10 +1,16 @@
 from io import BytesIO
 
 from openpyxl import Workbook
+from openpyxl.cell.cell import Cell
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.models.leads import Lead
+
+
+def _write_untrusted_text_as_string(cell: Cell) -> None:
+    if isinstance(cell.value, str):
+        cell.data_type = "s"
 
 
 def generate_leads_excel(leads: list[Lead]) -> BytesIO:
@@ -50,6 +56,8 @@ def generate_leads_excel(leads: list[Lead]) -> BytesIO:
                 lead.created_at,
             ]
         )
+        for cell in worksheet[worksheet.max_row][:4]:
+            _write_untrusted_text_as_string(cell)
 
     # Date formatting
     for row in worksheet.iter_rows(
